@@ -96,7 +96,53 @@ kubectl --context kind-devops-lab apply --dry-run=client -k .\k8s\demo
 ```
 
 **L'application n'est pas encore déployée dans Kubernetes.**
-L'image `devops-demo:v1` existe dans Docker Desktop ; les nœuds kind ne disposent
-pas automatiquement de cette image. L'étape suivante configurera le registry local,
-puis l'accès au dépôt privé pour ArgoCD et le déploiement GitOps.
+L'image `devops-demo:v1` a été publiée dans le registry local sous le nom
+`localhost:5001/devops-demo:v1`. Son téléchargement depuis kind est validé
+(voir ci-dessous). L'accès Git d'ArgoCD et le déploiement GitOps restent à configurer.
 Le pipeline CI et PostgreSQL restent à réaliser.
+
+## Registry local — étape validée
+
+Le registry écoute sur `127.0.0.1:5001` côté Windows. Le conteneur
+`devops-lab-registry` est également connecté au réseau Docker `kind`.
+Les images sont conservées dans le volume nommé `devops-lab-registry-data`.
+Le registry est en HTTP, sans authentification : ce choix est limité au lab local.
+
+### Configuration et publication (PowerShell)
+
+Le cluster doit déjà exister. Docker, kind et kubectl doivent être dans le PATH :
+
+```powershell
+.\scripts\Setup-Registry.ps1
+docker --context desktop-linux tag devops-demo:v1 localhost:5001/devops-demo:v1
+docker --context desktop-linux push localhost:5001/devops-demo:v1
+docker --context desktop-linux exec devops-lab-control-plane crictl pull localhost:5001/devops-demo:v1
+Invoke-RestMethod -Uri http://127.0.0.1:5001/v2/devops-demo/tags/list
+```
+
+Ces commandes ont été testées le 16 octobre 2026. Le tag `v1` est publié et le
+téléchargement depuis le nœud kind réussit. La relance du script de configuration
+réutilise le conteneur, le réseau et le volume existants.
+
+### Pourquoi une configuration spéciale pour kind ?
+
+`localhost` sur Windows et `localhost` dans le nœud Kubernetes sont deux adresses
+distinctes. Le fichier `infra/registry/hosts.toml`, copié dans
+`/etc/containerd/certs.d/localhost:5001/hosts.toml` sur chaque nœud, associe
+le nom d'image `localhost:5001/...` à `http://devops-lab-registry:5000`.
+
+Sur le nœud actuel, le chemin de configuration des registries était vide.
+Le script a sauvegardé le fichier containerd en
+`/etc/containerd/config.toml.devops-lab.bak`, ajouté `config_path`, puis redémarré
+le service containerd. Le cluster et les pods ArgoCD sont restés opérationnels.
+Le script s'arrête s'il rencontre une configuration différente qu'il ne sait pas modifier.
+
+Le ConfigMap `local-registry-hosting` dans `kube-public` documente l'adresse.
+Il ne configure pas à lui seul l'accès des nœuds au registry.
+
+Références :
+- https://kind.sigs.k8s.io/docs/user/local-registry/
+- https://github.com/containerd/containerd/blob/main/docs/hosts.md
+
+**Étape suivante :** autoriser ArgoCD à lire le dépôt privé, puis créer son
+Application GitOps. Aucun déploiement applicatif n'a été effectué pendant cette étape.

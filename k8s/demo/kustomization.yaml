@@ -7,4 +7,5 @@ resources:
   - service.yaml
 images:
   - name: devops-demo
+    newName: localhost:5001/devops-demo
     newTag: v1
