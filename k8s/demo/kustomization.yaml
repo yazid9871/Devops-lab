@@ -8,4 +8,4 @@ resources:
 images:
   - name: devops-demo
     newName: localhost:5001/devops-demo
-    newTag: v2
+    newTag: v1
