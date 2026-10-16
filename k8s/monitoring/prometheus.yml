@@ -30,3 +30,6 @@ scrape_configs:
       -
         targets:
           - "postgres-exporter.data.svc.cluster.local:9187"
+  - job_name: redis
+    static_configs:
+      - targets: ["redis.data.svc.cluster.local:9121"]

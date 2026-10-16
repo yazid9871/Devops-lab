@@ -21,20 +21,27 @@ if ($LASTEXITCODE -ne 0) { throw 'Prometheus configuration validation failed.' }
 & kubectl --context kind-devops-lab -n monitoring exec deployment/prometheus -- promtool test rules /etc/prometheus/tests/tests.yaml
 if ($LASTEXITCODE -ne 0) { throw 'Alert rule tests failed.' }
 $deadline = (Get-Date).AddSeconds(90)
+$expectedJobs = @('prometheus','kube-state-metrics','postgres')
+$redisInstalled = Invoke-MonitorKubectl -n data get deployment redis --ignore-not-found -o name
+if ($redisInstalled) { $expectedJobs += 'redis' }
 do {
     $targets = (Get-Prometheus 'api/v1/targets').activeTargets
-    $healthy = @($targets | Where-Object { $_.health -eq 'up' })
-    if ($targets.Count -eq 3 -and $healthy.Count -eq 3) { break }
+    $healthyJobs = @($targets | Where-Object { $_.health -eq 'up' } | ForEach-Object { $_.labels.job } | Select-Object -Unique)
+    if (@($expectedJobs | Where-Object { $_ -notin $healthyJobs }).Count -eq 0) { break }
     if ((Get-Date) -gt $deadline) { throw 'Prometheus targets are not all healthy.' }
     Start-Sleep -Seconds 5
 } while ($true)
 $pg = Get-Prometheus ('api/v1/query?query=' + [uri]::EscapeDataString('pg_up{job="postgres"}'))
 if ($pg.result.Count -ne 1 -or $pg.result[0].value[1] -ne '1') { throw 'PostgreSQL metric is not healthy.' }
+if ($redisInstalled) {
+    $redis = Get-Prometheus ('api/v1/query?query=' + [uri]::EscapeDataString('redis_up{job="redis"}'))
+    if ($redis.result.Count -ne 1 -or $redis.result[0].value[1] -ne '1') { throw 'Redis metric is not healthy.' }
+}
 $backup = Get-Prometheus ('api/v1/query?query=' + [uri]::EscapeDataString('kube_cronjob_status_last_successful_time{namespace="data",cronjob="postgres-backup"}'))
 if ($backup.result.Count -ne 1) { throw 'No successful scheduled backup is visible. Wait for the next five-minute backup and rerun this test.' }
 $rules = Get-Prometheus 'api/v1/rules'
 $alerts = @($rules.groups | ForEach-Object { $_.rules } | Where-Object { $_.type -eq 'alerting' })
-if ($alerts.Count -ne 3 -or @($alerts | Where-Object { $_.health -ne 'ok' }).Count -gt 0) { throw 'Expected three healthy alert rules.' }
+if ($alerts.Count -ne 4 -or @($alerts | Where-Object { $_.health -ne 'ok' }).Count -gt 0) { throw 'Expected four healthy alert rules.' }
 $grafana = Invoke-MonitorKubectl get --raw /api/v1/namespaces/monitoring/services/http:grafana:web/proxy/api/health | ConvertFrom-Json
 if ($grafana.database -ne 'ok') { throw 'Grafana database is not healthy.' }
 $am = Invoke-MonitorKubectl get --raw /api/v1/namespaces/monitoring/services/http:alertmanager:web/proxy/-/ready
@@ -64,6 +71,6 @@ if (@($filtered.result).Count -eq 0 -or @($filtered.result | Where-Object { $_.m
     throw 'Pod namespace/state filter failed.'
 }
 Write-Host "PASS: pod table matches all $($actual.Count) Kubernetes pods; names, readiness, restarts and data/Running filter checked."
-Write-Host 'PASS: 3 scrape targets UP, pg_up=1, scheduled backup visible, 3 healthy rules, Grafana and Alertmanager ready.'
+Write-Host "PASS: $($expectedJobs.Count) required scrape targets UP, database metrics healthy, scheduled backup visible, 4 healthy rules, Grafana and Alertmanager ready."
 Write-Host 'PASS: alert failure scenarios tested with simulated metrics (no live outage injected).'
 $alerts | Select-Object name, state, health | Format-Table

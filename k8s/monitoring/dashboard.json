@@ -2,7 +2,7 @@
   "uid": "devops-lab",
   "title": "DevOps Lab",
   "schemaVersion": 39,
-  "version": 3,
+  "version": 4,
   "timezone": "browser",
   "refresh": "15s",
   "time": {
@@ -512,6 +512,58 @@
           }
         }
       ]
+    },
+    {
+      "id": 11,
+      "title": "Redis disponible (1 = oui)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 30,
+        "w": 8,
+        "h": 5
+      },
+      "targets": [
+        {
+          "expr": "redis_up{job=\"redis\"}",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "description": "Cache optionnel. No data si Redis n’est pas encore installe."
     }
   ],
   "tags": [

@@ -32,3 +32,12 @@ groups:
         annotations:
           summary: "Une sauvegarde a echoue ou aucun succes recent (15 min) est visible."
           runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"
+      - alert: LabRedisUnavailable
+        expr: "max((redis_up{job=\"redis\"} == 0) or (up{job=\"redis\"} == 0) or absent(redis_up{job=\"redis\"})) and on() (max(kube_deployment_spec_replicas{namespace=\"data\",deployment=\"redis\"}) > 0)"
+        for: 1m
+        labels:
+          severity: warning
+          lab: devops
+        annotations:
+          summary: "Redis ou son exporteur ne repond plus depuis une minute."
+          runbook_url: https://github.com/yazid9871/Devops-lab/blob/main/docs/redis.md

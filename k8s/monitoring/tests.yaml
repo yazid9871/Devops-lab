@@ -254,3 +254,116 @@ tests:
             exp_annotations:
               summary: "Une sauvegarde a echoue ou aucun succes recent (15 min) est visible."
               runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"
+  -
+    name: "Redis down"
+    interval: "1m"
+    input_series:
+      -
+        series: "redis_up{job=\"redis\"}"
+        values: "0+0x4"
+      -
+        series: "kube_deployment_spec_replicas{namespace=\"data\",deployment=\"redis\"}"
+        values: "1+0x4"
+    alert_rule_test:
+      -
+        eval_time: "30s"
+        alertname: "LabRedisUnavailable"
+        exp_alerts: []
+      -
+        eval_time: "2m"
+        alertname: "LabRedisUnavailable"
+        exp_alerts:
+          -
+            exp_labels:
+              severity: "warning"
+              lab: "devops"
+            exp_annotations:
+              summary: "Redis ou son exporteur ne repond plus depuis une minute."
+              runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/redis.md"
+  -
+    name: "Redis exporter down"
+    interval: "1m"
+    input_series:
+      -
+        series: "redis_up{job=\"redis\"}"
+        values: "1+0x4"
+      -
+        series: "up{job=\"redis\"}"
+        values: "0+0x4"
+      -
+        series: "kube_deployment_spec_replicas{namespace=\"data\",deployment=\"redis\"}"
+        values: "1+0x4"
+    alert_rule_test:
+      -
+        eval_time: "30s"
+        alertname: "LabRedisUnavailable"
+        exp_alerts: []
+      -
+        eval_time: "2m"
+        alertname: "LabRedisUnavailable"
+        exp_alerts:
+          -
+            exp_labels:
+              severity: "warning"
+              lab: "devops"
+            exp_annotations:
+              summary: "Redis ou son exporteur ne repond plus depuis une minute."
+              runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/redis.md"
+  -
+    name: "Redis metric missing"
+    interval: "1m"
+    input_series:
+      -
+        series: "kube_deployment_spec_replicas{namespace=\"data\",deployment=\"redis\"}"
+        values: "1+0x4"
+    alert_rule_test:
+      -
+        eval_time: "30s"
+        alertname: "LabRedisUnavailable"
+        exp_alerts: []
+      -
+        eval_time: "2m"
+        alertname: "LabRedisUnavailable"
+        exp_alerts:
+          -
+            exp_labels:
+              severity: "warning"
+              lab: "devops"
+            exp_annotations:
+              summary: "Redis ou son exporteur ne repond plus depuis une minute."
+              runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/redis.md"
+  -
+    name: "Redis healthy"
+    interval: "1m"
+    input_series:
+      -
+        series: "redis_up{job=\"redis\"}"
+        values: "1+0x4"
+      -
+        series: "up{job=\"redis\"}"
+        values: "1+0x4"
+      -
+        series: "kube_deployment_spec_replicas{namespace=\"data\",deployment=\"redis\"}"
+        values: "1+0x4"
+    alert_rule_test:
+      -
+        eval_time: "30s"
+        alertname: "LabRedisUnavailable"
+        exp_alerts: []
+      -
+        eval_time: "2m"
+        alertname: "LabRedisUnavailable"
+        exp_alerts: []
+  -
+    name: "Redis optional and not installed"
+    interval: "1m"
+    input_series: []
+    alert_rule_test:
+      -
+        eval_time: "30s"
+        alertname: "LabRedisUnavailable"
+        exp_alerts: []
+      -
+        eval_time: "2m"
+        alertname: "LabRedisUnavailable"
+        exp_alerts: []
