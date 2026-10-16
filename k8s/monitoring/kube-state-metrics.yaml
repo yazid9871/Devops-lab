@@ -125,13 +125,13 @@ items:
               readinessProbe:
                 httpGet:
                   path: "/healthz"
-                  port: "telemetry"
+                  port: "web"
                 initialDelaySeconds: 5
                 periodSeconds: 5
               livenessProbe:
                 httpGet:
                   path: "/healthz"
-                  port: "telemetry"
+                  port: "web"
                 initialDelaySeconds: 30
                 periodSeconds: 15
               args:

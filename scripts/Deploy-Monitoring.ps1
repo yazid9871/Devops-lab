@@ -21,7 +21,7 @@ if (-not $credential) {
         metadata = @{ name = 'lab-grafana-admin'; namespace = 'monitoring' }
         data = @{
             'admin-user' = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('admin'))
-            'admin-password' = [Convert]::ToBase64String($random)
+            'admin-password' = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([Convert]::ToBase64String($random)))
         }
     }
     $secret | ConvertTo-Json -Depth 5 -Compress | & kubectl --context kind-devops-lab apply --server-side -f -

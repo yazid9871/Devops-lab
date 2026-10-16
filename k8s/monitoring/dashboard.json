@@ -77,7 +77,7 @@
       },
       "targets": [
         {
-          "expr": "count(kube_pod_status_phase{namespace=~\"demo|data\",phase=\"Failed\"} == 1) or vector(0)",
+          "expr": "count(max by (namespace,pod) (kube_pod_status_phase{namespace=~\"demo|data\",phase=\"Failed\"} == 1) or max by (namespace,pod) (kube_pod_container_status_waiting_reason{namespace=~\"demo|data\",reason=~\"CrashLoopBackOff|ImagePullBackOff|ErrImagePull|CreateContainerConfigError\"} == 1)) or vector(0)",
           "refId": "A",
           "instant": true
         }
