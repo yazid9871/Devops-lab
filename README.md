@@ -1,31 +1,27 @@
 # Lab DevOps local
 
-Ce lab sert à tester une chaîne de déploiement sur un PC, avant de réfléchir
-à son utilisation dans l'infrastructure de l'équipe.
+Ce projet reproduit une chaîne de déploiement sur un PC Windows :
+Git → image Docker → registry local → ArgoCD → Kubernetes.
 
-**Le projet est en cours.** Le cluster, le registry et ArgoCD fonctionnent.
-ArgoCD lit le dépôt privé et déploie automatiquement l'application dans Kubernetes.
-La CI, le rollback et la sauvegarde PostgreSQL restent à réaliser.
+Le déploiement fonctionne. La sauvegarde et la restauration PostgreSQL seront
+ajoutées à la prochaine étape. Tout reste hors production.
 
-## 1. Avant de commencer
+## 1. Prérequis
 
-Il faut un PC Windows avec :
+Installer Git, Docker Desktop, kind, kubectl et le client OpenSSH (`ssh-keygen`).
+Démarrer Docker Desktop avec le moteur Linux. Prévoir une connexion Internet
+et un compte GitHub autorisé à lire et modifier ce dépôt privé.
+L'ajout d'une deploy key nécessite les droits d'administration du dépôt ; sinon,
+demander au propriétaire d'ajouter uniquement la clé publique.
 
-- Docker Desktop démarré, en mode conteneurs Linux ;
-- Git, kind et kubectl installés et accessibles dans PowerShell ;
-- une connexion Internet pour télécharger les images ;
-- un compte GitHub autorisé à lire ce dépôt privé.
-
-Pas besoin d'installer Python, Helm ou ArgoCD sur Windows.
-Python est inclus dans l'image Docker et ArgoCD tourne dans Kubernetes.
-
-Ouvrir PowerShell et vérifier :
+Dans PowerShell, vérifier :
 
 ```powershell
 docker version
 git --version
 kind version
 kubectl version --client
+Get-Command ssh-keygen
 ```
 
 Docker doit afficher **Client** et **Server**. Si une commande est introuvable,
@@ -33,177 +29,149 @@ ouvrir un nouveau PowerShell après son installation.
 
 ## 2. Récupérer le projet
 
-Pour une première installation :
-
 ```powershell
 Set-Location "$HOME\Desktop"
 git clone https://github.com/yazid9871/Devops-lab.git
 Set-Location .\Devops-lab
 ```
 
-Si GitHub demande une connexion, utiliser un compte qui a accès au dépôt.
-Ne pas mettre de token dans la commande.
+Si le projet est déjà cloné, entrer simplement dans son dossier.
+Si GitHub demande une connexion, utiliser un compte autorisé sur le dépôt.
 
-Si le dossier existe déjà sur ce PC, utiliser simplement :
-
-```powershell
-Set-Location "$HOME\Desktop\Devops-lab"
-```
-
-## 3. Démarrer le lab
-
-Depuis le dossier du projet, autoriser les scripts locaux dans ce terminal, puis lancer :
+## 3. Préparer le lab
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 .\scripts\Start-Lab.ps1
 ```
 
-Le script prépare les éléments déjà disponibles :
+La première commande autorise les scripts locaux uniquement dans ce terminal.
+Le script prépare le cluster, le registry, ArgoCD et l'image de l'application.
+Il teste l'image et son téléchargement depuis kind.
 
-1. Crée le cluster `devops-lab` s'il n'existe pas.
-2. Configure le registry local et son stockage.
-3. Installe ArgoCD depuis le manifeste conservé dans le dépôt.
-4. Construit l'image de l'application et la publie dans le registry.
-5. Démarre une démonstration Docker et vérifie sa santé.
+**Résultat attendu :** `Infrastructure ready`.
+Le script réutilise les ressources compatibles et conserve les images existantes.
+Il ne supprime aucune donnée. En cas d'erreur, s'arrêter et lire le message.
 
-Il réutilise les ressources compatibles déjà présentes et ne supprime aucune donnée.
-En cas d'erreur, il s'arrête : lire le message avant de continuer.
+## 4. Autoriser ArgoCD à lire GitHub
 
-**Résultat attendu :** le script termine par `Ready: http://localhost:18080`.
-Ouvrir [l'application](http://localhost:18080) : elle affiche « DevOps Lab — version 1 ».
+```powershell
+.\scripts\Connect-ArgoRepo.ps1
+```
 
-## 4. Ouvrir ArgoCD
+Copier la ligne publique affichée, qui commence par `ssh-ed25519`.
+Ouvrir [Settings → Deploy keys](https://github.com/yazid9871/Devops-lab/settings/keys)
+sur GitHub, puis **Add deploy key** :
 
-Dans un PowerShell qui restera ouvert :
+- Title : `argocd-devops-lab`.
+- Key : la ligne publique copiée.
+- **Allow write access : laisser décoché.**
+
+Cliquer sur **Add key**. Sur un autre PC, créer une nouvelle clé avec le script.
+La clé privée reste dans `secrets/`, exclu de Git, et dans le cluster.
+Ne jamais la copier dans un message ou un commit.
+
+## 5. Déployer et ouvrir l'application
+
+```powershell
+.\scripts\Deploy-Demo.ps1
+```
+
+**Résultat attendu :** `ArgoCD: Synced / Healthy`, avec un pod prêt.
+ArgoCD suit la branche `main` et le dossier `k8s/demo`.
+
+Pour ouvrir la page, lancer ceci et laisser le terminal ouvert :
+
+```powershell
+kubectl --context kind-devops-lab -n demo port-forward svc/devops-demo 8081:80
+```
+
+Ouvrir [http://localhost:8081](http://localhost:8081).
+Dans un autre PowerShell, depuis le projet :
+
+```powershell
+.\scripts\Test-Deployment.ps1
+```
+
+**Résultat attendu :** `PASS`, la bonne version et une santé `ok`.
+Ce test passe par le Service Kubernetes et ne dépend pas du port-forward.
+
+## 6. Ouvrir ArgoCD
+
+Dans un autre terminal qui restera ouvert :
 
 ```powershell
 kubectl --context kind-devops-lab -n argocd port-forward svc/argocd-server 8080:443
 ```
 
-Ouvrir [ArgoCD](https://localhost:8080). Accepter l'avertissement de certificat
-autosigné uniquement pour cette adresse locale.
+Ouvrir [https://localhost:8080](https://localhost:8080).
+Accepter le certificat autosigné pour cette adresse locale.
 
-Pour une première connexion, ouvrir un deuxième PowerShell et récupérer le
-mot de passe initial :
+Le compte initial est `admin`. Pour obtenir son mot de passe :
 
 ```powershell
 $encoded = kubectl --context kind-devops-lab -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}'
 [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encoded))
 ```
 
-Se connecter avec `admin`, puis changer le mot de passe dans
-**User Info → Update Password**. Pour une installation existante, utiliser le
-mot de passe déjà choisi. Ne pas enregistrer les mots de passe dans Git.
+Changer ce mot de passe dans **User Info → Update Password**.
+Sur une installation existante, utiliser le mot de passe déjà choisi.
 
-## 5. Relier ArgoCD au dépôt privé
+## 7. Publier une version et tester un rollback
 
-Cette autorisation est distincte de votre connexion GitHub personnelle.
-ArgoCD a seulement besoin de lire ce dépôt.
+Les modifications du code doivent d'abord être enregistrées et poussées dans Git.
+Si nécessaire, configurer `git config user.name` et `git config user.email`
+avec votre identité pour ce dépôt.
 
-Depuis le dossier du projet :
-
-```powershell
-.\scripts\Connect-ArgoRepo.ps1
-```
-
-Le script génère une clé dédiée et affiche uniquement sa **clé publique**.
-La clé privée reste dans `secrets/`, exclu de Git, et dans un Secret du cluster.
-
-Dans [les clés de déploiement du dépôt](https://github.com/yazid9871/Devops-lab/settings/keys) :
-
-1. Cliquer sur **Add deploy key**.
-2. Saisir le titre `argocd-devops-lab`.
-3. Coller la ligne publique affichée par le script, qui commence par `ssh-ed25519`.
-4. Laisser **Allow write access** décoché et valider avec **Add key**.
-
-Ensuite, lancer :
+Dans le même PowerShell, lancer :
 
 ```powershell
-.\scripts\Deploy-Demo.ps1
+.\scripts\Publish-Demo.ps1
+$deployCommit = git rev-parse HEAD
+.\scripts\Test-Deployment.ps1
 ```
 
-Ce script crée l'Application ArgoCD et attend **Synced / Healthy**.
-ArgoCD lit la branche `main`, dans le dossier `k8s/demo`, puis déploie
-l'application dans le namespace `demo`.
-La synchronisation automatique corrige les écarts ; la suppression automatique
-des ressources retirées de Git est désactivée.
+Le pipeline choisit le prochain numéro disponible, construit et teste l'image,
+la publie dans le registry, puis pousse la version souhaitée dans Git.
+ArgoCD la déploie automatiquement. La détection peut prendre quelques minutes.
+Les anciens tags sont conservés.
 
-Pour ouvrir l'application déployée par Kubernetes :
+Pour revenir à la version précédente :
 
 ```powershell
-kubectl --context kind-devops-lab -n demo port-forward svc/devops-demo 8081:80
+git revert --no-edit $deployCommit
+git push origin main
+.\scripts\Test-Deployment.ps1
 ```
 
-Laisser ce terminal ouvert. Ouvrir [la version Kubernetes](http://localhost:8081).
-Dans un autre terminal, vérifier :
-
-```powershell
-Invoke-RestMethod http://localhost:8081/healthz
-kubectl --context kind-devops-lab -n argocd get application devops-demo
-```
-
-**Vérifié le 16 octobre 2026 :** ArgoCD a lu le dépôt privé et lancé la
-synchronisation automatiquement. L'Application affiche `Synced / Healthy`,
-le pod est prêt et la page répond sur le port 8081. Les routes `/healthz`
-et `/version` renvoient respectivement `ok` et `1`.
-
-Sur un autre PC, générer une nouvelle clé avec le script et l'ajouter au dépôt.
-Ne jamais copier la clé privée dans le README, un message ou un commit.
-
-## 6. Vérifier le résultat
-
-```powershell
-kubectl --context kind-devops-lab get nodes
-kubectl --context kind-devops-lab -n argocd get pods
-Invoke-RestMethod http://localhost:18080/healthz
-Invoke-RestMethod http://localhost:18080/version
-Invoke-RestMethod http://localhost:5001/v2/devops-demo/tags/list
-```
-
-On doit retrouver :
-
-| Contrôle | Résultat attendu |
-| --- | --- |
-| Nœud Kubernetes | `Ready` |
-| Pods ArgoCD | `Running`, tous les conteneurs prêts |
-| Santé de l'application | `ok` |
-| Version | `1` |
-| Tags du registry | `v1` |
-
-L'application visible sur le port 18080 tourne dans Docker.
-Les manifestes pour son futur déploiement Kubernetes sont dans `k8s/demo/`.
+Le rollback ajoute un commit dans Git. L'ancienne image est réutilisée.
+Si le port-forward s'arrête pendant le changement de pod, relancer celui de l'étape 5.
+En cas d'erreur du pipeline, ne pas poursuivre ; examiner `git status` et `git diff`.
 
 ## En cas de problème
 
-| Problème | Que faire |
+| Problème | Vérification |
 | --- | --- |
-| Docker ne montre pas de partie Server | Démarrer Docker Desktop et attendre que le moteur soit prêt. |
-| PowerShell bloque les scripts | Après vérification du code, exécuter `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned`, puis relancer le script. Cela ne concerne que ce terminal. |
-| Le clone renvoie Repository not found | Vérifier l'accès du compte GitHub au dépôt privé. |
-| Un port est déjà utilisé ou un conteneur est incompatible | Lire le message du script et inspecter la ressource ; ne pas la supprimer sans vérifier son contenu. |
-| ArgoCD ne s'ouvre plus | Relancer le port-forward de l'étape 4. |
-| Un pod reste bloqué | Utiliser `kubectl --context kind-devops-lab -n argocd get events --sort-by=.metadata.creationTimestamp`. |
+| Docker ne répond pas | Démarrer Docker Desktop, puis relancer `docker version`. |
+| GitHub refuse l'accès | Vérifier le compte Git pour la CI et la deploy key pour ArgoCD. |
+| ArgoCD ne se synchronise pas | `kubectl --context kind-devops-lab -n argocd get application devops-demo -o yaml` |
+| Un pod reste bloqué | `kubectl --context kind-devops-lab -n demo get events --sort-by=.metadata.creationTimestamp` |
+| Un port est déjà occupé | Vérifier les terminaux de port-forward déjà ouverts. |
+| Le script signale une ressource incompatible | Inspecter son contenu avant toute suppression. |
 
-## Avancement par rapport aux critères de notation
+## Avancement
 
-| Attendu | État |
+| Critère | État |
 | --- | --- |
-| Cluster, ArgoCD et registry | Vérifiés |
-| Application Docker | Vérifiée |
-| Premier déploiement automatique ArgoCD | Vérifié |
-| Mise à jour applicative automatique et rollback GitOps | À réaliser |
-| Pipeline CI local | À réaliser |
-| Sauvegarde et restauration PostgreSQL chronométrée | À réaliser |
-| Supervision et trois alertes | À réaliser, après les priorités |
-| Runbook, note de recul et démonstration de 20 minutes | À compléter au fil des tests |
+| Déploiement automatique | Vérifié |
+| CI locale et rollback GitOps | Vérifiés : version 1 → 2 → 1 |
+| Sauvegarde et restauration PostgreSQL | Prochaine étape |
+| Supervision et trois alertes | Après les priorités |
+| Runbook, note de recul, démo de 20 minutes | En cours |
+| Relance complète sur un PC neuf en moins de 30 minutes | À mesurer en fin de lab |
 
-La commande de démarrage a été testée le 16 octobre 2026 dans Windows PowerShell
-sur le lab existant, sans suppression ni recréation du cluster.
-
-Objectif final : relancer le lab avec ce README seul en moins de 30 minutes,
-prérequis installés. Le temps d'une installation complète sur un PC neuf
-n'a pas encore été mesuré.
-
+La publication de la version 2 et le retour à la version 1 ont été vérifiés le 16 octobre 2026.
+Les [résultats des tests](docs/validation-jour1.md) sont conservés dans le dépôt.
+La relance sur le lab existant a été testée dans Windows PowerShell.
+Le [runbook](docs/runbook.md) regroupe les opérations courantes.
 Les détails du registry sont dans [docs/registry.md](docs/registry.md).
-Les commandes et vérifications sont ajoutées à la documentation après leur test.

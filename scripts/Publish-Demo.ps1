@@ -16,6 +16,8 @@ try {
     if ($LASTEXITCODE -ne 0 -or $branch -ne 'main') { throw 'Run the pipeline from branch main.' }
     $pending = & git status --porcelain
     if ($LASTEXITCODE -ne 0 -or $pending) { throw 'Commit your changes before running the pipeline.' }
+    $null = & git var GIT_AUTHOR_IDENT
+    if ($LASTEXITCODE -ne 0) { throw 'Configure git user.name and user.email for this repository first.' }
     Invoke-CiCommand git @('fetch', 'origin', 'main')
     $head = & git rev-parse HEAD
     if ($LASTEXITCODE -ne 0) { throw 'Unable to read HEAD.' }
