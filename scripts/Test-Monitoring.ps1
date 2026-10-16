@@ -65,12 +65,16 @@ foreach ($row in $table.result) {
         throw 'Pod readiness or restart count is missing.'
     }
 }
-$filteredQuery = $podQuery.Replace('${namespace:regex}', 'data').Replace('${phase:regex}', 'Running')
-$filtered = Get-Prometheus ('api/v1/query?query=' + [uri]::EscapeDataString($filteredQuery))
-if (@($filtered.result).Count -eq 0 -or @($filtered.result | Where-Object { $_.metric.namespace -ne 'data' -or $_.metric.phase -ne 'Running' }).Count -gt 0) {
-    throw 'Pod namespace/state filter failed.'
+if ($podQuery.Contains('${namespace:regex}') -or $podQuery.Contains('${phase:regex}')) {
+    throw 'The inventory table must show all namespaces and all states regardless of dashboard filters.'
 }
-Write-Host "PASS: pod table matches all $($actual.Count) Kubernetes pods; names, readiness, restarts and data/Running filter checked."
+foreach ($row in $table.result) {
+    $expectedOrder = if ($row.metric.namespace -eq 'demo') { '0' } else { '1' }
+    if ($row.metric.pod_order -ne $expectedOrder) { throw 'Demo-first sort priority is incorrect.' }
+    $source = $pods | Where-Object { $_.metadata.namespace -eq $row.metric.namespace -and $_.metadata.name -eq $row.metric.pod }
+    if ($source.status.phase -ne $row.metric.phase) { throw 'Pod phase differs from Kubernetes. Retry after the next scrape.' }
+}
+Write-Host "PASS: pod table matches all $($actual.Count) Kubernetes pods in all states; demo-first priority, readiness and restarts checked."
 Write-Host "PASS: $($expectedJobs.Count) required scrape targets UP, database metrics healthy, scheduled backup visible, 4 healthy rules, Grafana and Alertmanager ready."
 Write-Host 'PASS: alert failure scenarios tested with simulated metrics (no live outage injected).'
 $alerts | Select-Object name, state, health | Format-Table

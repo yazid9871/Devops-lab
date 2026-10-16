@@ -49,7 +49,8 @@ Le 16 octobre, la requete du tableau a ete comparee a `kubectl get pods -A` :
 **28 pods presents**, dont **24 actifs** et **4 termines**, au moment du controle.
 Ces nombres evoluent avec les executions de sauvegarde et les deploiements.
 Le script verifie tous les noms, la presence des champs conteneurs prets et
-redemarrages, ainsi que le filtre `namespace=data`, `etat=Running`.
+redemarrages et les etats par rapport a Kubernetes. Le tableau est desormais
+independant des filtres, avec une priorite de tri pour les pods `demo`.
 La requete passee par l'API de source de donnees Grafana renvoie bien les labels
 des pods. La transformation `labelsToFields` les convertit en colonnes du tableau.
 Le comptage couvre desormais aussi les pods `argocd`, `kube-system` et

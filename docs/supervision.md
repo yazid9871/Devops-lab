@@ -70,10 +70,12 @@ actifs par namespace. Il ne mesure pas le CPU ou la mémoire des conteneurs.
 
 Trois compteurs indiquent les pods présents, les pods actifs (`Running` ou
 `Pending`) et les pods terminés (`Succeeded` ou `Failed`). Ils suivent le filtre
-**Namespace**. Le tableau **Liste des pods** affiche une ligne par pod : namespace,
+**Namespace des compteurs**. Le tableau **Liste des pods** affiche une ligne par pod : namespace,
 nom, état Kubernetes, conteneurs prêts et redémarrages des conteneurs applicatifs.
 Les conteneurs d'initialisation ne sont pas inclus dans ces deux derniers champs.
-Le filtre **Etat des pods** s'applique seulement au tableau. Les mesures sont
+Le tableau affiche toujours tous les namespaces et tous les etats, independamment
+du filtre des compteurs. Les pods `demo` sont places en premier, puis les autres
+sont tries par namespace et nom. Les mesures sont
 rafraîchies toutes les 15 secondes ; un changement peut mettre quelques secondes
 à apparaître. Un pod supprimé disparaît du tableau après la collecte suivante.
 Après un redémarrage de Prometheus, les compteurs et le tableau ignorent aussi les

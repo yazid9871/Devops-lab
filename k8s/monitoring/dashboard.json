@@ -2,7 +2,7 @@
   "uid": "devops-lab",
   "title": "DevOps Lab",
   "schemaVersion": 39,
-  "version": 5,
+  "version": 6,
   "timezone": "browser",
   "refresh": "15s",
   "time": {
@@ -436,7 +436,7 @@
     {
       "id": 10,
       "title": "Liste des pods",
-      "description": "Une ligne par pod actuellement present dans Kubernetes. Le filtre Etat ne concerne que ce tableau. Conteneurs prets : conteneurs applicatifs, hors init containers. Les compteurs suivent le namespace selectionne.",
+      "description": "Tous les pods presents dans Kubernetes, tous namespaces et tous etats. Les pods demo apparaissent en premier. Le filtre des compteurs ne masque aucune ligne du tableau.",
       "type": "table",
       "datasource": {
         "type": "prometheus",
@@ -450,7 +450,7 @@
       },
       "targets": [
         {
-          "expr": "(label_join(((((max by (namespace,pod,phase) (kube_pod_status_phase{namespace=~\"${namespace:regex}\",phase=~\"${phase:regex}\"} == 1)) * on (namespace,pod) group_left(ready) count_values by (namespace,pod) (\"ready\", (sum by (namespace,pod) (kube_pod_container_status_ready{namespace=~\"${namespace:regex}\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\"${namespace:regex}\"})))) * on (namespace,pod) group_left(containers) count_values by (namespace,pod) (\"containers\", (count by (namespace,pod) (kube_pod_container_info{namespace=~\"${namespace:regex}\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\"${namespace:regex}\"})))) * on (namespace,pod) group_left(restarts) count_values by (namespace,pod) (\"restarts\", (sum by (namespace,pod) (kube_pod_container_status_restarts_total{namespace=~\"${namespace:regex}\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\"${namespace:regex}\"})))), \"readiness\", \"/\", \"ready\", \"containers\")) and on (namespace,pod) (timestamp(kube_pod_info{namespace=~\"${namespace:regex}\"}) > time() - 60)",
+          "expr": "label_replace(label_replace(((label_join(((((max by (namespace,pod,phase) (kube_pod_status_phase{namespace=~\".*\",phase=~\".*\"} == 1)) * on (namespace,pod) group_left(ready) count_values by (namespace,pod) (\"ready\", (sum by (namespace,pod) (kube_pod_container_status_ready{namespace=~\".*\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\".*\"})))) * on (namespace,pod) group_left(containers) count_values by (namespace,pod) (\"containers\", (count by (namespace,pod) (kube_pod_container_info{namespace=~\".*\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\".*\"})))) * on (namespace,pod) group_left(restarts) count_values by (namespace,pod) (\"restarts\", (sum by (namespace,pod) (kube_pod_container_status_restarts_total{namespace=~\".*\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\".*\"})))), \"readiness\", \"/\", \"ready\", \"containers\")) and on (namespace,pod) (timestamp(kube_pod_info{namespace=~\".*\"}) > time() - 60)), \"pod_order\", \"1\", \"namespace\", \".*\"), \"pod_order\", \"0\", \"namespace\", \"demo\")",
           "refId": "A",
           "instant": true,
           "format": "time_series"
@@ -468,12 +468,7 @@
       "options": {
         "showHeader": true,
         "cellHeight": "sm",
-        "sortBy": [
-          {
-            "displayName": "Namespace",
-            "desc": false
-          }
-        ],
+        "sortBy": [],
         "footer": {
           "show": false
         }
@@ -486,6 +481,25 @@
           }
         },
         {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "pod_order",
+                "desc": false
+              },
+              {
+                "field": "namespace",
+                "desc": false
+              },
+              {
+                "field": "pod",
+                "desc": false
+              }
+            ]
+          }
+        },
+        {
           "id": "organize",
           "options": {
             "excludeByName": {
@@ -493,7 +507,8 @@
               "Value": true,
               "ready": true,
               "containers": true,
-              "__name__": true
+              "__name__": true,
+              "pod_order": true
             },
             "indexByName": {
               "namespace": 0,
@@ -574,7 +589,7 @@
     "list": [
       {
         "name": "namespace",
-        "label": "Namespace",
+        "label": "Namespace des compteurs",
         "type": "query",
         "datasource": {
           "type": "prometheus",
@@ -593,20 +608,6 @@
           "value": "$__all"
         },
         "sort": 1
-      },
-      {
-        "name": "phase",
-        "label": "Etat des pods",
-        "type": "custom",
-        "query": "Running,Pending,Succeeded,Failed,Unknown",
-        "multi": true,
-        "includeAll": true,
-        "allValue": ".*",
-        "current": {
-          "text": "All",
-          "value": "$__all"
-        },
-        "options": []
       }
     ]
   }
