@@ -20,7 +20,7 @@ try {
     if ($LASTEXITCODE -ne 0 -or $osType -ne 'linux') {
         throw 'Start Docker Desktop with the Linux engine before running this script.'
     }
-    Write-Host '[1/5] Kubernetes'
+    Write-Host '[1/4] Kubernetes'
     $clusters = @(& kind get clusters)
     if ($LASTEXITCODE -ne 0) { throw 'Unable to list kind clusters.' }
     if ($clusters -notcontains 'devops-lab') {
@@ -28,57 +28,39 @@ try {
     }
     Invoke-Checked kubectl @('--context', 'kind-devops-lab', 'wait', '--for=condition=Ready', 'node', '--all', '--timeout=120s')
 
-    Write-Host '[2/5] Local registry'
+    Write-Host '[2/4] Local registry'
     & (Join-Path $PSScriptRoot 'Setup-Registry.ps1')
 
-    Write-Host '[3/5] ArgoCD'
+    Write-Host '[3/4] ArgoCD'
     Invoke-Checked kubectl @('--context', 'kind-devops-lab', 'apply', '-f', (Join-Path $projectRoot 'infra/argocd/namespace.yaml'))
     Invoke-Checked kubectl @('--context', 'kind-devops-lab', 'apply', '--server-side', '-n', 'argocd', '-f', (Join-Path $projectRoot 'infra/argocd/install.yaml'))
     Invoke-Checked kubectl @('--context', 'kind-devops-lab', '-n', 'argocd', 'wait', '--for=condition=Available', 'deployment', '--all', '--timeout=300s')
     Invoke-Checked kubectl @('--context', 'kind-devops-lab', '-n', 'argocd', 'rollout', 'status', 'statefulset/argocd-application-controller', '--timeout=300s')
 
-    Write-Host '[4/5] Demo image'
-    Invoke-Checked docker @('build', '--tag', 'devops-demo:v1', (Join-Path $projectRoot 'app'))
-    Invoke-Checked docker @('tag', 'devops-demo:v1', 'localhost:5001/devops-demo:v1')
-    Invoke-Checked docker @('push', 'localhost:5001/devops-demo:v1')
+    Write-Host '[4/4] Demo image'
+    $version = [IO.File]::ReadAllText((Join-Path $projectRoot 'app/VERSION')).Trim()
+    if ($version -notmatch '^\d+$') { throw 'Expected a numeric app/VERSION.' }
+    $manifest = [IO.File]::ReadAllText((Join-Path $projectRoot 'k8s/demo/kustomization.yaml'))
+    if ($manifest -notmatch "(?m)^    newTag: v$version\r?`$") { throw 'App version and desired image tag must match.' }
+    $image = "localhost:5001/devops-demo:v$version"
+    $tags = @()
+    try { $tags = (Invoke-RestMethod -Uri 'http://127.0.0.1:5001/v2/devops-demo/tags/list' -TimeoutSec 10).tags }
+    catch { if ([int]$_.Exception.Response.StatusCode -ne 404) { throw } }
+    if ($tags -notcontains "v$version") {
+        Invoke-Checked docker @('build', '--provenance=false', '--tag', $image, (Join-Path $projectRoot 'app'))
+        Invoke-Checked docker @('push', $image)
+    } else {
+        Invoke-Checked docker @('pull', $image)
+    }
+    $testFile = Join-Path $PSScriptRoot 'smoke_test.py'
+    Invoke-Checked docker @('run', '--rm', '--read-only', '--network', 'none', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges', '--mount', "type=bind,source=$testFile,target=/tmp/smoke_test.py,readonly", $image, 'python', '/tmp/smoke_test.py', $version)
     $nodes = @(& kind get nodes --name devops-lab)
     if ($LASTEXITCODE -ne 0) { throw 'Unable to list cluster nodes.' }
     foreach ($nodeName in $nodes) {
-        Invoke-Checked docker @('exec', $nodeName, 'crictl', 'pull', 'localhost:5001/devops-demo:v1')
+        Invoke-Checked docker @('exec', $nodeName, 'crictl', 'pull', $image)
     }
     Invoke-Checked kubectl @('--context', 'kind-devops-lab', 'apply', '--dry-run=client', '-k', (Join-Path $projectRoot 'k8s/demo'))
-
-    Write-Host '[5/5] Local preview'
-    $names = @(& docker ps -a --filter 'name=^/devops-demo-preview$' --format '{{.Names}}')
-    if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect preview container.' }
-    if ($names -contains 'devops-demo-preview') {
-        $container = (& docker inspect devops-demo-preview | ConvertFrom-Json)[0]
-        if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect preview container.' }
-        $expectedImage = (& docker image inspect devops-demo:v1 | ConvertFrom-Json)[0]
-        if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect demo image.' }
-        $currentImage = (& docker image inspect $container.Image | ConvertFrom-Json)[0]
-        if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect running demo image.' }
-        # Build attestations can change the image ID even when its files are identical.
-        $sameLayers = ($currentImage.RootFS.Layers -join ',') -eq ($expectedImage.RootFS.Layers -join ',')
-        $sameConfig = ($currentImage.Config | ConvertTo-Json -Depth 10 -Compress) -eq ($expectedImage.Config | ConvertTo-Json -Depth 10 -Compress)
-        $portBindings = @($container.HostConfig.PortBindings.'8080/tcp')
-        if (-not $sameLayers -or -not $sameConfig -or $portBindings.Count -ne 1 -or $portBindings[0].HostIp -ne '127.0.0.1' -or $portBindings[0].HostPort -ne '18080') {
-            throw 'An incompatible preview container already exists. Inspect it before replacing it.'
-        }
-        if (-not $container.State.Running) { Invoke-Checked docker @('start', 'devops-demo-preview') }
-    } else {
-        Invoke-Checked docker @('run', '--detach', '--name', 'devops-demo-preview', '--label', 'devops.lab=preview', '--read-only', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges', '--publish', '127.0.0.1:18080:8080', 'devops-demo:v1')
-    }
-    $healthy = $false
-    for ($attempt = 0; $attempt -lt 15; $attempt++) {
-        try {
-            $health = Invoke-RestMethod -Uri 'http://127.0.0.1:18080/healthz' -TimeoutSec 3
-            if ($health.status -eq 'ok') { $healthy = $true; break }
-        } catch { Start-Sleep -Seconds 1 }
-    }
-    if (-not $healthy) { throw 'Demo health check failed.' }
-    Write-Host 'Ready: http://localhost:18080'
-    Write-Host 'This preview runs in Docker. For the Kubernetes deployment, follow README step 5.'
+    Write-Host 'Infrastructure ready. Follow README step 5 to deploy through ArgoCD.'
 } finally {
     $env:DOCKER_CONTEXT = $previousDockerContext
 }
