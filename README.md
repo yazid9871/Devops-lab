@@ -96,7 +96,61 @@ Se connecter avec `admin`, puis changer le mot de passe dans
 **User Info → Update Password**. Pour une installation existante, utiliser le
 mot de passe déjà choisi. Ne pas enregistrer les mots de passe dans Git.
 
-## 5. Vérifier le résultat
+## 5. Relier ArgoCD au dépôt privé
+
+Cette autorisation est distincte de votre connexion GitHub personnelle.
+ArgoCD a seulement besoin de lire ce dépôt.
+
+Depuis le dossier du projet :
+
+```powershell
+.\scripts\Connect-ArgoRepo.ps1
+```
+
+Le script génère une clé dédiée et affiche uniquement sa **clé publique**.
+La clé privée reste dans `secrets/`, exclu de Git, et dans un Secret du cluster.
+
+Dans [les clés de déploiement du dépôt](https://github.com/yazid9871/Devops-lab/settings/keys) :
+
+1. Cliquer sur **Add deploy key**.
+2. Saisir le titre `argocd-devops-lab`.
+3. Coller la ligne publique affichée par le script, qui commence par `ssh-ed25519`.
+4. Laisser **Allow write access** décoché et valider avec **Add key**.
+
+Ensuite, lancer :
+
+```powershell
+.\scripts\Deploy-Demo.ps1
+```
+
+Ce script crée l'Application ArgoCD et attend **Synced / Healthy**.
+ArgoCD lit la branche `main`, dans le dossier `k8s/demo`, puis déploie
+l'application dans le namespace `demo`.
+La synchronisation automatique corrige les écarts ; la suppression automatique
+des ressources retirées de Git est désactivée.
+
+Pour ouvrir l'application déployée par Kubernetes :
+
+```powershell
+kubectl --context kind-devops-lab -n demo port-forward svc/devops-demo 8081:80
+```
+
+Laisser ce terminal ouvert. Ouvrir [la version Kubernetes](http://localhost:8081).
+Dans un autre terminal, vérifier :
+
+```powershell
+Invoke-RestMethod http://localhost:8081/healthz
+kubectl --context kind-devops-lab -n argocd get application devops-demo
+```
+
+**Validation en cours :** la création de la clé, son enregistrement dans ArgoCD
+et le manifeste Application ont été vérifiés. Le déploiement de bout en bout
+reste à tester après l'ajout de la clé publique dans GitHub.
+
+Sur un autre PC, générer une nouvelle clé avec le script et l'ajouter au dépôt.
+Ne jamais copier la clé privée dans le README, un message ou un commit.
+
+## 6. Vérifier le résultat
 
 ```powershell
 kubectl --context kind-devops-lab get nodes
