@@ -1,0 +1,18 @@
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+.kube/
+kubeconfig
+kubeconfig.*
+*.kubeconfig
+secrets/
+*.key
+*.pem
+
+# Generated files and database backups
+work/
+backups/
+*.dump
+*.backup
+*.log
