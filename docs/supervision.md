@@ -123,6 +123,9 @@ de considérer le problème terminé ; une alerte masquée n'est pas une répara
   fait 2 Go ; celui de Grafana fait 1 Go. Les volumes restent sur le même PC.
 - Alertmanager utilise un volume temporaire : ses silences et son historique
   interne disparaissent quand son pod est remplacé.
+- ArgoCD conserve les anciennes ConfigMaps lors des mises à jour. Elles sont
+  ignorées dans le calcul de synchronisation ; les pods utilisent la configuration
+  référencée dans Git. Aucun nettoyage automatique des données n'est activé.
 - La collecte des objets couvre `demo`, `data` et `monitoring`. Les alertes pods
   ciblent `demo` et `data`. Les composants internes du cluster ne sont pas couverts.
 - Il n'y a pas d'alerte indépendante si le PC, Prometheus ou tout le cluster tombe.

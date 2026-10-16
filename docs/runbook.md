@@ -149,3 +149,9 @@ Voir [le scénario détaillé](sauvegarde-restauration.md) et
 ## Alertes
 
 La supervision et les trois alertes restent à ajouter.
+
+## Supervision
+
+Installer : `.\scripts\Deploy-Monitoring.ps1`. Verifier : `.\scripts\Test-Monitoring.ps1`.
+
+Le [guide de supervision](supervision.md) explique les trois alertes, les interfaces et les commandes de diagnostic.

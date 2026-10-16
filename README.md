@@ -218,6 +218,50 @@ Une sauvegarde planifiée a aussi été vérifiée.
 Les [résultats](docs/validation-restauration.md) et
 [les détails du scénario](docs/sauvegarde-restauration.md) sont dans le dépôt.
 
+## 10. Voir l'etat du lab dans Grafana
+
+Apres PostgreSQL et la sauvegarde, lancer :
+
+```powershell
+.\scripts\Deploy-Monitoring.ps1
+```
+
+Le script installe Prometheus, Grafana et les outils de collecte avec ArgoCD.
+Il cree aussi le mot de passe Grafana. Aucun nouvel outil a installer sur Windows.
+Sur une installation neuve, attendre la premiere sauvegarde planifiee si le test
+le demande (cinq minutes maximum), puis relancer `Test-Monitoring.ps1`.
+
+Pour ouvrir Grafana, garder ce terminal ouvert :
+
+```powershell
+kubectl --context kind-devops-lab -n monitoring port-forward svc/grafana 3000:3000
+```
+
+Ouvrir **http://localhost:3000/d/devops-lab**, utilisateur **admin**.
+Dans un autre terminal, afficher le mot de passe local :
+
+```powershell
+$encoded = kubectl --context kind-devops-lab -n monitoring get secret lab-grafana-admin -o jsonpath='{.data.admin-password}'
+[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encoded))
+```
+
+Le dashboard **DevOps Lab** montre la base, les pods et les sauvegardes.
+Trois alertes surveillent : pod en erreur, PostgreSQL inaccessible et sauvegarde
+échouée ou sans succès depuis quinze minutes. Les alertes sont visibles dans
+Prometheus et Alertmanager ; aucun message externe n'est envoyé.
+
+Pour verifier la supervision :
+
+```powershell
+.\scripts\Test-Monitoring.ps1
+```
+
+**Resultat attendu :** `PASS`, trois cibles `UP` et trois regles chargees.
+Les scenarios de panne sont testes avec des metriques simulees.
+Les [resultats de verification](docs/validation-supervision.md) sont conserves dans le depot.
+Les [commandes pour consulter et comprendre les alertes](docs/supervision.md)
+sont dans le guide de supervision.
+
 ## En cas de problème
 
 | Problème | Vérification |
@@ -237,7 +281,7 @@ Les [résultats](docs/validation-restauration.md) et
 | CI locale et rollback GitOps | Vérifiés : version 1 → 2 → 1 |
 | PostgreSQL et son volume | Vérifiés |
 | Sauvegarde automatique et restauration PostgreSQL | Vérifiées |
-| Supervision et trois alertes | Après les priorités |
+| Supervision et trois alertes | Vérifiées : collecte réelle et tests de règles simulés |
 | Runbook, note de recul, démo de 20 minutes | En cours |
 | Relance complète sur un PC neuf en moins de 30 minutes | À mesurer en fin de lab |
 

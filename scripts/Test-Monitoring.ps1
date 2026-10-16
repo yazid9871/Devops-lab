@@ -16,8 +16,10 @@ foreach ($name in @('prometheus','grafana','alertmanager','kube-state-metrics'))
     Invoke-MonitorKubectl -n monitoring rollout status "deployment/$name" --timeout=180s
 }
 Invoke-MonitorKubectl -n data rollout status deployment/postgres-exporter --timeout=180s
-Invoke-MonitorKubectl -n monitoring exec deployment/prometheus -- promtool check config /etc/prometheus/config/prometheus.yml
-Invoke-MonitorKubectl -n monitoring exec deployment/prometheus -- promtool test rules /etc/prometheus/tests/tests.yaml
+& kubectl --context kind-devops-lab -n monitoring exec deployment/prometheus -- promtool check config /etc/prometheus/config/prometheus.yml
+if ($LASTEXITCODE -ne 0) { throw 'Prometheus configuration validation failed.' }
+& kubectl --context kind-devops-lab -n monitoring exec deployment/prometheus -- promtool test rules /etc/prometheus/tests/tests.yaml
+if ($LASTEXITCODE -ne 0) { throw 'Alert rule tests failed.' }
 $deadline = (Get-Date).AddSeconds(90)
 do {
     $targets = (Get-Prometheus 'api/v1/targets').activeTargets
