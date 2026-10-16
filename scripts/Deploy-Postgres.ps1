@@ -3,6 +3,7 @@
 param()
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'Lab-Repository.ps1')
 function Invoke-PgKubectl {
     & kubectl --context kind-devops-lab @args
     if ($LASTEXITCODE -ne 0) { throw "kubectl failed: $($args -join ' ')" }
@@ -31,7 +32,7 @@ if (-not $credential) {
     $secret | ConvertTo-Json -Depth 5 -Compress | & kubectl --context kind-devops-lab apply --server-side -f -
     if ($LASTEXITCODE -ne 0) { throw 'Unable to create the local PostgreSQL credential.' }
 }
-Invoke-PgKubectl apply -f (Join-Path $projectRoot 'infra/argocd/postgres-application.yaml')
+Set-LabApplication -ManifestPath (Join-Path $projectRoot 'infra/argocd/postgres-application.yaml')
 $revision = & git -C $projectRoot rev-parse HEAD
 if ($LASTEXITCODE -ne 0) { throw 'Unable to read the Git revision.' }
 Invoke-PgKubectl -n argocd wait "--for=jsonpath={.status.sync.revision}=$revision" application/postgres-lab --timeout=300s

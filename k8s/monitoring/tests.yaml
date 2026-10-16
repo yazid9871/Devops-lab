@@ -35,7 +35,7 @@ tests:
               pod: "broken"
             exp_annotations:
               summary: "Un pod du lab est en erreur depuis une minute."
-              runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"
+              runbook: "docs/supervision.md"
   -
     name: "LabPodError 1"
     interval: "1m"
@@ -69,7 +69,7 @@ tests:
               pod: "broken"
             exp_annotations:
               summary: "Un pod du lab est en erreur depuis une minute."
-              runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"
+              runbook: "docs/supervision.md"
   -
     name: "LabPostgresUnavailable 2"
     interval: "1m"
@@ -99,7 +99,7 @@ tests:
               job: "postgres"
             exp_annotations:
               summary: "PostgreSQL ou son exporteur ne repond plus depuis une minute."
-              runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"
+              runbook: "docs/supervision.md"
   -
     name: "LabPostgresUnavailable 3"
     interval: "1m"
@@ -129,7 +129,7 @@ tests:
               job: "postgres"
             exp_annotations:
               summary: "PostgreSQL ou son exporteur ne repond plus depuis une minute."
-              runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"
+              runbook: "docs/supervision.md"
   -
     name: "LabBackupFailed 4"
     interval: "1m"
@@ -163,7 +163,7 @@ tests:
               job_name: "postgres-backup-test"
             exp_annotations:
               summary: "Une sauvegarde a echoue ou aucun succes recent (15 min) est visible."
-              runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"
+              runbook: "docs/supervision.md"
   -
     name: "LabBackupFailed 5"
     interval: "1m"
@@ -194,7 +194,7 @@ tests:
               cronjob: "postgres-backup"
             exp_annotations:
               summary: "Une sauvegarde a echoue ou aucun succes recent (15 min) est visible."
-              runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"
+              runbook: "docs/supervision.md"
   -
     name: "Healthy lab and completed backup"
     interval: "1m"
@@ -240,7 +240,7 @@ tests:
               lab: "devops"
             exp_annotations:
               summary: "PostgreSQL ou son exporteur ne repond plus depuis une minute."
-              runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"
+              runbook: "docs/supervision.md"
       -
         eval_time: "2m"
         alertname: "LabBackupFailed"
@@ -253,7 +253,7 @@ tests:
               lab: "devops"
             exp_annotations:
               summary: "Une sauvegarde a echoue ou aucun succes recent (15 min) est visible."
-              runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"
+              runbook: "docs/supervision.md"
   -
     name: "Redis down"
     interval: "1m"
@@ -279,7 +279,7 @@ tests:
               lab: "devops"
             exp_annotations:
               summary: "Redis ou son exporteur ne repond plus depuis une minute."
-              runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/redis.md"
+              runbook: "docs/redis.md"
   -
     name: "Redis exporter down"
     interval: "1m"
@@ -308,7 +308,7 @@ tests:
               lab: "devops"
             exp_annotations:
               summary: "Redis ou son exporteur ne repond plus depuis une minute."
-              runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/redis.md"
+              runbook: "docs/redis.md"
   -
     name: "Redis metric missing"
     interval: "1m"
@@ -331,7 +331,7 @@ tests:
               lab: "devops"
             exp_annotations:
               summary: "Redis ou son exporteur ne repond plus depuis une minute."
-              runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/redis.md"
+              runbook: "docs/redis.md"
   -
     name: "Redis healthy"
     interval: "1m"

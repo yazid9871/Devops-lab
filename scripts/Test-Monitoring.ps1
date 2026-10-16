@@ -37,8 +37,14 @@ if ($redisInstalled) {
     $redis = Get-Prometheus ('api/v1/query?query=' + [uri]::EscapeDataString('redis_up{job="redis"}'))
     if ($redis.result.Count -ne 1 -or $redis.result[0].value[1] -ne '1') { throw 'Redis metric is not healthy.' }
 }
+$backupDeadline = (Get-Date).AddSeconds(360)
 $backup = Get-Prometheus ('api/v1/query?query=' + [uri]::EscapeDataString('kube_cronjob_status_last_successful_time{namespace="data",cronjob="postgres-backup"}'))
-if ($backup.result.Count -ne 1) { throw 'No successful scheduled backup is visible. Wait for the next five-minute backup and rerun this test.' }
+if ($backup.result.Count -ne 1) { Write-Host 'Waiting for the first scheduled backup (up to six minutes, including collection)...' }
+while ($backup.result.Count -ne 1) {
+    if ((Get-Date) -gt $backupDeadline) { throw 'No successful scheduled backup is visible. Inspect the CronJob and its Job logs.' }
+    Start-Sleep -Seconds 5
+    $backup = Get-Prometheus ('api/v1/query?query=' + [uri]::EscapeDataString('kube_cronjob_status_last_successful_time{namespace="data",cronjob="postgres-backup"}'))
+}
 $rules = Get-Prometheus 'api/v1/rules'
 $alerts = @($rules.groups | ForEach-Object { $_.rules } | Where-Object { $_.type -eq 'alerting' })
 if ($alerts.Count -ne 4 -or @($alerts | Where-Object { $_.health -ne 'ok' }).Count -gt 0) { throw 'Expected four healthy alert rules.' }

@@ -6,12 +6,19 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $keyDir = Join-Path $projectRoot 'secrets'
 $keyPath = Join-Path $keyDir 'argocd-github'
 $publicPath = $keyPath + '.pub'
-$repoUrl = 'ssh://git@ssh.github.com:443/yazid9871/Devops-lab.git'
+. (Join-Path $PSScriptRoot 'Lab-Repository.ps1')
+$repository = Get-LabRepository -ProjectRoot $projectRoot
+$repoUrl = $repository.SshUrl
 foreach ($tool in @('git', 'kubectl', 'ssh-keygen')) {
     if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { throw "$tool is missing from PATH." }
 }
 & kubectl --context kind-devops-lab -n argocd get deployment argocd-repo-server -o name
 if ($LASTEXITCODE -ne 0) { throw 'Start the lab first.' }
+$existingUrl = & kubectl --context kind-devops-lab -n argocd get secret devops-lab-github --ignore-not-found -o 'jsonpath={.data.url}'
+if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect the repository credential.' }
+if ($existingUrl -and [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($existingUrl)) -ne $repoUrl) {
+    throw 'This cluster is connected to another GitHub repository. Use its original checkout; no credential has been changed.'
+}
 & git -C $projectRoot check-ignore --quiet secrets/argocd-github
 if ($LASTEXITCODE -ne 0) { throw 'The private key must be excluded from Git before continuing.' }
 if ((Test-Path $keyPath) -ne (Test-Path $publicPath)) {
@@ -60,5 +67,5 @@ $repoSecret | ConvertTo-Json -Depth 6 -Compress | & kubectl --context kind-devop
 if ($LASTEXITCODE -ne 0) { throw 'Unable to register the repository credential in ArgoCD.' }
 Write-Host 'Public key to add to GitHub (leave Allow write access unchecked):'
 Get-Content -LiteralPath $publicPath
-Write-Host 'GitHub repository > Settings > Deploy keys > Add deploy key'
+Write-Host $repository.KeysUrl
 Write-Host 'This prepares the credential; repository access is verified after adding the public key.'

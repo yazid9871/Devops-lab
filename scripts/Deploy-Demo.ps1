@@ -3,7 +3,8 @@
 param()
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
-& kubectl --context kind-devops-lab apply -f (Join-Path $projectRoot 'infra/argocd/demo-application.yaml')
+. (Join-Path $PSScriptRoot 'Lab-Repository.ps1')
+Set-LabApplication -ManifestPath (Join-Path $projectRoot 'infra/argocd/demo-application.yaml')
 if ($LASTEXITCODE -ne 0) { throw 'Unable to create the ArgoCD Application.' }
 $ready = $false
 $deadline = (Get-Date).AddMinutes(5)

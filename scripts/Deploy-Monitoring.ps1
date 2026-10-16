@@ -3,6 +3,7 @@
 param()
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'Lab-Repository.ps1')
 function Invoke-MonitorKubectl {
     & kubectl --context kind-devops-lab @args
     if ($LASTEXITCODE -ne 0) { throw "kubectl failed: $($args -join ' ')" }
@@ -27,7 +28,7 @@ if (-not $credential) {
     $secret | ConvertTo-Json -Depth 5 -Compress | & kubectl --context kind-devops-lab apply --server-side -f -
     if ($LASTEXITCODE -ne 0) { throw 'Unable to create the Grafana credential.' }
 }
-Invoke-MonitorKubectl apply -f (Join-Path $projectRoot 'infra/argocd/monitoring-application.yaml')
+Set-LabApplication -ManifestPath (Join-Path $projectRoot 'infra/argocd/monitoring-application.yaml')
 Invoke-MonitorKubectl -n argocd annotate application monitoring-lab argocd.argoproj.io/refresh=hard --overwrite
 $revision = & git -C $projectRoot rev-parse HEAD
 if ($LASTEXITCODE -ne 0) { throw 'Unable to read the Git revision.' }

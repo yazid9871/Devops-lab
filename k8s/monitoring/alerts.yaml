@@ -11,7 +11,7 @@ groups:
           lab: "devops"
         annotations:
           summary: "Un pod du lab est en erreur depuis une minute."
-          runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"
+          runbook: "docs/supervision.md"
       -
         alert: "LabPostgresUnavailable"
         expr: "(pg_up{job=\"postgres\"} == 0) or (up{job=\"postgres\"} == 0) or absent(pg_up{job=\"postgres\"})"
@@ -21,7 +21,7 @@ groups:
           lab: "devops"
         annotations:
           summary: "PostgreSQL ou son exporteur ne repond plus depuis une minute."
-          runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"
+          runbook: "docs/supervision.md"
       -
         alert: "LabBackupFailed"
         expr: "max by (namespace,job_name) (kube_job_status_failed{namespace=\"data\",job_name=~\"postgres-backup-.*|backup-manual-.*\"} > 0) or (time() - kube_cronjob_status_last_successful_time{namespace=\"data\",cronjob=\"postgres-backup\"} > 900) or absent(kube_cronjob_status_last_successful_time{namespace=\"data\",cronjob=\"postgres-backup\"})"
@@ -31,7 +31,7 @@ groups:
           lab: "devops"
         annotations:
           summary: "Une sauvegarde a echoue ou aucun succes recent (15 min) est visible."
-          runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"
+          runbook: "docs/supervision.md"
       - alert: LabRedisUnavailable
         expr: "max((redis_up{job=\"redis\"} == 0) or (up{job=\"redis\"} == 0) or absent(redis_up{job=\"redis\"})) and on() (max(kube_deployment_spec_replicas{namespace=\"data\",deployment=\"redis\"}) > 0)"
         for: 1m
@@ -40,4 +40,4 @@ groups:
           lab: devops
         annotations:
           summary: "Redis ou son exporteur ne repond plus depuis une minute."
-          runbook_url: https://github.com/yazid9871/Devops-lab/blob/main/docs/redis.md
+          runbook: docs/redis.md

@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: ssh://git@ssh.github.com:443/yazid9871/Devops-lab.git
+    repoURL: ssh://git@ssh.github.com:443/OWNER/REPOSITORY.git
     targetRevision: main
     path: k8s/redis
   destination:
