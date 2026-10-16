@@ -1,21 +1,21 @@
 # Lab DevOps local
 
-Ce projet reproduit une chaîne de déploiement sur un PC Windows :
-Git → image Docker → registry local → ArgoCD → Kubernetes.
+Ce lab permet de déployer une petite application avec ArgoCD, de revenir à une
+ancienne version, puis de sauvegarder et restaurer PostgreSQL. Grafana affiche
+l'état du lab. Redis est ajouté en option.
 
-Le déploiement, le rollback et la sauvegarde PostgreSQL fonctionnent.
-Une restauration complète de la base vers une instance vide a été vérifiée.
-Tout reste hors production.
+Tout tourne sur le PC, sans accès à la production. Le code est sur GitHub.
 
-## 1. Prérequis
+## Avant de commencer
 
-Installer Git, Docker Desktop, kind, kubectl et le client OpenSSH (`ssh-keygen`).
-Démarrer Docker Desktop avec le moteur Linux. Prévoir une connexion Internet
-et un compte GitHub autorisé à lire et modifier ce dépôt privé.
-L'ajout d'une deploy key nécessite les droits d'administration du dépôt ; sinon,
-demander au propriétaire d'ajouter uniquement la clé publique.
+Il faut Windows, PowerShell, une connexion Internet et ces outils installés :
+[Git](https://git-scm.com/downloads/win),
+[Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/),
+[kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation),
+[kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/)
+et le [client OpenSSH](https://learn.microsoft.com/windows-server/administration/openssh/openssh_install_firstuse).
 
-Dans PowerShell, vérifier :
+Démarrer Docker Desktop en mode **Linux containers**, puis ouvrir PowerShell :
 
 ```powershell
 docker version
@@ -25,106 +25,141 @@ kubectl version --client
 Get-Command ssh-keygen
 ```
 
-Docker doit afficher **Client** et **Server**. Si une commande est introuvable,
-ouvrir un nouveau PowerShell après son installation.
+Les cinq commandes doivent fonctionner. Docker doit afficher **Client** et **Server**.
+Il faut aussi un accès à ce dépôt privé. Pour ajouter la clé ArgoCD, il faut les
+droits d'administration du dépôt ou l'aide de son propriétaire.
 
-## 2. Récupérer le projet
+## 1. Récupérer le projet
 
 ```powershell
 Set-Location "$HOME\Desktop"
 git clone https://github.com/yazid9871/Devops-lab.git
 Set-Location .\Devops-lab
-```
-
-Si le projet est déjà cloné, entrer simplement dans son dossier.
-Si GitHub demande une connexion, utiliser un compte autorisé sur le dépôt.
-
-## 3. Préparer le lab
-
-```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
-.\scripts\Start-Lab.ps1
 ```
 
-La première commande autorise les scripts locaux uniquement dans ce terminal.
-Le script prépare le cluster, le registry, ArgoCD et l'image de l'application.
-Il teste l'image et son téléchargement depuis kind.
+Se connecter à GitHub si Git le demande. Si le projet est déjà cloné, ouvrir son
+dossier. La dernière commande autorise les scripts uniquement dans ce terminal.
+**Pour la suite, rester dans le dossier du projet et lancer une commande à la fois.
+Si une commande échoue, lire son message avant de continuer.**
 
-**Résultat attendu :** `Infrastructure ready`.
-Le script réutilise les ressources compatibles et conserve les images existantes.
-Il ne supprime aucune donnée. En cas d'erreur, s'arrêter et lire le message.
-
-## 4. Autoriser ArgoCD à lire GitHub
+## 2. Préparer le cluster et l'accès GitHub
 
 ```powershell
+.\scripts\Start-Lab.ps1
 .\scripts\Connect-ArgoRepo.ps1
 ```
 
-Copier la ligne publique affichée, qui commence par `ssh-ed25519`.
-Ouvrir [Settings → Deploy keys](https://github.com/yazid9871/Devops-lab/settings/keys)
-sur GitHub, puis **Add deploy key** :
+Le premier script prépare Kubernetes, le registry local, ArgoCD et l'image de
+l'application. Il doit afficher `Infrastructure ready`.
 
-- Title : `argocd-devops-lab`.
-- Key : la ligne publique copiée.
-- **Allow write access : laisser décoché.**
+Le second affiche une clé publique qui commence par `ssh-ed25519`.
+La copier dans [GitHub → Settings → Deploy keys → Add deploy key](https://github.com/yazid9871/Devops-lab/settings/keys) :
 
-Cliquer sur **Add key**. Sur un autre PC, créer une nouvelle clé avec le script.
-La clé privée reste dans `secrets/`, exclu de Git, et dans le cluster.
-Ne jamais la copier dans un message ou un commit.
+- **Title** : `argocd-devops-lab`.
+- **Key** : la ligne publique affichée.
+- Laisser **Allow write access** décoché, puis cliquer sur **Add key**.
 
-## 5. Déployer et ouvrir l'application
+Sur un autre PC, ajouter sa nouvelle clé publique. La clé privée reste dans
+`secrets/`, hors de Git ; elle ne doit pas être partagée.
+
+## 3. Installer les services
+
+Attendre la fin de chaque commande avant de lancer la suivante :
 
 ```powershell
 .\scripts\Deploy-Demo.ps1
+.\scripts\Deploy-Postgres.ps1
+.\scripts\Deploy-Monitoring.ps1
 ```
 
-**Résultat attendu :** `ArgoCD: Synced / Healthy`, avec un pod prêt.
-ArgoCD suit la branche `main` et le dossier `k8s/demo`.
+L'application doit être `Synced / Healthy` et les tests doivent afficher `PASS`.
+Si la supervision attend une sauvegarde, attendre la première exécution planifiée
+(jusqu'à cinq minutes), puis relancer `Test-Monitoring.ps1`.
 
-Pour ouvrir la page, lancer ceci et laisser le terminal ouvert :
+Pour ajouter Redis :
+
+```powershell
+.\scripts\Deploy-Redis.ps1
+```
+
+Les mots de passe sont générés automatiquement, hors de Git. Relancer les scripts
+réutilise les ressources compatibles. Redis est un cache temporaire ; l'application
+web ne l'utilise pas encore.
+
+## 4. Ouvrir les interfaces
+
+Chaque commande ci-dessous garde son terminal occupé : **utiliser un terminal
+séparé par interface** et le laisser ouvert. `Ctrl+C` ferme le tunnel.
+
+**Application :**
 
 ```powershell
 kubectl --context kind-devops-lab -n demo port-forward svc/devops-demo 8081:80
 ```
 
-Ouvrir [http://localhost:8081](http://localhost:8081).
-Dans un autre PowerShell, depuis le projet :
+Ouvrir [localhost:8081](http://localhost:8081).
+
+**Grafana :**
 
 ```powershell
-.\scripts\Test-Deployment.ps1
+kubectl --context kind-devops-lab -n monitoring port-forward svc/grafana 3000:3000
 ```
 
-**Résultat attendu :** `PASS`, la bonne version et une santé `ok`.
-Ce test passe par le Service Kubernetes et ne dépend pas du port-forward.
+Ouvrir [le dashboard DevOps Lab](http://localhost:3000/d/devops-lab), compte `admin`.
+Pour afficher son mot de passe, dans un autre PowerShell :
 
-## 6. Ouvrir ArgoCD
+```powershell
+$encoded = kubectl --context kind-devops-lab -n monitoring get secret lab-grafana-admin -o jsonpath='{.data.admin-password}'
+[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encoded))
+```
 
-Dans un autre terminal qui restera ouvert :
+Le tableau montre tous les pods, tous états confondus, avec `demo` en premier.
+Les alertes couvrent les pods en erreur, PostgreSQL, les sauvegardes et Redis
+s'il est installé. Elles sont locales, sans envoi d'email.
+
+**ArgoCD :**
 
 ```powershell
 kubectl --context kind-devops-lab -n argocd port-forward svc/argocd-server 8080:443
 ```
 
-Ouvrir [https://localhost:8080](https://localhost:8080).
-Accepter le certificat autosigné pour cette adresse locale.
-
-Le compte initial est `admin`. Pour obtenir son mot de passe :
+Ouvrir [localhost:8080](https://localhost:8080), accepter le certificat local,
+puis se connecter avec `admin`. Pour obtenir le mot de passe initial :
 
 ```powershell
 $encoded = kubectl --context kind-devops-lab -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}'
 [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encoded))
 ```
 
-Changer ce mot de passe dans **User Info → Update Password**.
-Sur une installation existante, utiliser le mot de passe déjà choisi.
+Le changer dans **User Info → Update Password**. S'il a déjà été changé, utiliser
+le mot de passe choisi.
 
-## 7. Publier une version et tester un rollback
+## 5. Vérifier le lab
 
-Les modifications du code doivent d'abord être enregistrées et poussées dans Git.
-Si nécessaire, configurer `git config user.name` et `git config user.email`
-avec votre identité pour ce dépôt.
+Dans le terminal du projet :
 
-Dans le même PowerShell, lancer :
+```powershell
+.\scripts\Test-Deployment.ps1
+.\scripts\Test-Postgres.ps1
+.\scripts\Test-Monitoring.ps1
+kubectl --context kind-devops-lab get pods -A
+```
+
+Les tests doivent afficher `PASS`. Si Redis est installé, lancer aussi
+`.\scripts\Test-Redis.ps1`. Un pod de sauvegarde `Completed` est normal.
+
+Pour voir les données PostgreSQL :
+
+```powershell
+kubectl --context kind-devops-lab -n data exec postgres-0 -- psql -U lab -d lab -c "TABLE demo_items;"
+```
+
+## Tester une nouvelle version et revenir en arrière
+
+Le dépôt doit être propre et poussé sur `main`. Configurer son identité Git si
+nécessaire : `git config user.name "Votre nom"` et `git config user.email "votre@email"`.
+Dans le même terminal, depuis le projet :
 
 ```powershell
 .\scripts\Publish-Demo.ps1
@@ -132,12 +167,8 @@ $deployCommit = git rev-parse HEAD
 .\scripts\Test-Deployment.ps1
 ```
 
-Le pipeline choisit le prochain numéro disponible, construit et teste l'image,
-la publie dans le registry, puis pousse la version souhaitée dans Git.
-ArgoCD la déploie automatiquement. La détection peut prendre quelques minutes.
-Les anciens tags sont conservés.
-
-Pour revenir à la version précédente :
+Le script construit et teste l'image, la publie dans le registry local, puis pousse
+la nouvelle version dans Git. ArgoCD la déploie. Après le succès, pour revenir en arrière :
 
 ```powershell
 git revert --no-edit $deployCommit
@@ -145,179 +176,38 @@ git push origin main
 .\scripts\Test-Deployment.ps1
 ```
 
-Le rollback ajoute un commit dans Git. L'ancienne image est réutilisée.
-Si le port-forward s'arrête pendant le changement de pod, relancer celui de l'étape 5.
-En cas d'erreur du pipeline, ne pas poursuivre ; examiner `git status` et `git diff`.
+## Sauvegarder et restaurer PostgreSQL
 
-## 8. Déployer PostgreSQL
-
-Depuis le dossier du projet :
-
-```powershell
-.\scripts\Deploy-Postgres.ps1
-```
-
-Le script crée les identifiants du lab dans Kubernetes, puis ArgoCD déploie
-PostgreSQL dans le namespace `data`. La base et l'utilisateur s'appellent `lab`.
-Le mot de passe est généré automatiquement et reste hors de Git.
-
-**Résultat attendu :** `PASS`, au moins trois lignes de démonstration et un volume `Bound`.
-La relance conserve le mot de passe, le volume et les données déjà présents.
-
-Pour vérifier plus tard :
-
-```powershell
-.\scripts\Test-Postgres.ps1
-```
-
-Pour afficher les données fictives :
-
-```powershell
-kubectl --context kind-devops-lab -n data exec postgres-0 -- psql -h postgres.data.svc.cluster.local -U lab -d lab -c "TABLE demo_items;"
-```
-
-Les trois produits fictifs sont créés uniquement lors de l'initialisation d'un
-volume vide. Modifier `init.sql` ne modifie pas une base déjà initialisée.
-PostgreSQL est accessible à l'intérieur du cluster ; aucun port n'est ouvert sur Windows.
-
-Le stockage persistant et les sauvegardes utilisent deux volumes distincts.
-La sauvegarde et la restauration sont expliquées à l'étape suivante.
-
-## 9. Sauvegarder et tester une restauration
-
-La commande `Deploy-Postgres.ps1` installe aussi un CronJob de sauvegarde :
-il s'exécute toutes les cinq minutes dans le cluster.
-
-Pour faire une sauvegarde immédiatement et en garder une copie sur Windows :
+Une sauvegarde tourne automatiquement toutes les cinq minutes. Pour en lancer
+une et en copier l'archive dans le dossier local `backups/` :
 
 ```powershell
 .\scripts\Backup-Postgres.ps1
 ```
 
-**Résultat attendu :** `PASS`. L'archive et son SHA-256 sont copiés dans
-`backups/`, un dossier exclu de Git. Les sauvegardes planifiées restent dans le
-volume Kubernetes ; leur export sur Windows se fait avec cette commande.
-
-Pour tester la restauration :
+Pour vérifier qu'une sauvegarde se restaure correctement :
 
 ```powershell
 .\scripts\Test-Restore.ps1
 ```
 
-Le script ajoute une ligne fictive, sauvegarde, puis restaure dans une **nouvelle
-instance vide**, avec son propre volume. Il compare les données et la structure,
-et affiche la durée. La base source est conservée.
+Attendu : `PASS: full database restored`. Le test ajoute une ligne fictive et
+restaure dans une nouvelle instance, sans remplacer la base source. Il garde
+l'instance de test et son rapport dans `backups/`. Chaque relance crée une cible.
+Les sauvegardes planifiées restent dans le cluster ; leur copie sur Windows
+se fait avec `Backup-Postgres.ps1`.
 
-**Résultat attendu :** `PASS: full database restored`.
-Le rapport est enregistré dans `backups/*-report.json`.
-Les instances de test sont conservées ; chaque relance en crée une nouvelle.
+## Si ça bloque
 
-Test vérifié le 16 octobre 2026 : quatre lignes restaurées, structure identique,
-**11,78 s** pour créer la cible, restaurer et contrôler, dont **58 ms** de `pg_restore`.
-Une sauvegarde planifiée a aussi été vérifiée.
-Les [résultats](docs/validation-restauration.md) et
-[les détails du scénario](docs/sauvegarde-restauration.md) sont dans le dépôt.
+- **Commande introuvable** : vérifier son installation et rouvrir PowerShell.
+- **Docker ne répond pas** : démarrer Docker Desktop.
+- **ArgoCD ne synchronise pas** : vérifier la clé GitHub et les messages de l'application dans ArgoCD.
+- **Page inaccessible** : vérifier que son terminal de tunnel est toujours ouvert ; le relancer après un changement de pod.
+- **Script refusé** : relancer `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned` dans ce terminal.
 
-## 10. Voir l'etat du lab dans Grafana
+Le [runbook](docs/runbook.md) contient les commandes de dépannage.
+Les guides [sauvegarde/restauration](docs/sauvegarde-restauration.md),
+[supervision](docs/supervision.md) et [Redis](docs/redis.md) expliquent les détails.
 
-Apres PostgreSQL et la sauvegarde, lancer :
-
-```powershell
-.\scripts\Deploy-Monitoring.ps1
-```
-
-Le script installe Prometheus, Grafana et les outils de collecte avec ArgoCD.
-Il cree aussi le mot de passe Grafana. Aucun nouvel outil a installer sur Windows.
-Sur une installation neuve, attendre la premiere sauvegarde planifiee si le test
-le demande (cinq minutes maximum), puis relancer `Test-Monitoring.ps1`.
-
-Pour ouvrir Grafana, garder ce terminal ouvert :
-
-```powershell
-kubectl --context kind-devops-lab -n monitoring port-forward svc/grafana 3000:3000
-```
-
-Ouvrir **http://localhost:3000/d/devops-lab**, utilisateur **admin**.
-Dans un autre terminal, afficher le mot de passe local :
-
-```powershell
-$encoded = kubectl --context kind-devops-lab -n monitoring get secret lab-grafana-admin -o jsonpath='{.data.admin-password}'
-[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encoded))
-```
-
-Le dashboard **DevOps Lab** montre la base, les pods et les sauvegardes.
-Il affiche aussi le nombre total de pods, les pods actifs et les pods termines,
-avec un tableau : nom, namespace, etat, conteneurs prets et redemarrages.
-Le tableau affiche toujours tous les pods et tous les etats, avec **demo en premier**.
-Le filtre **Namespace des compteurs** concerne uniquement les compteurs.
-Trois alertes surveillent : pod en erreur, PostgreSQL inaccessible et sauvegarde
-échouée ou sans succès depuis quinze minutes. Les alertes sont visibles dans
-Prometheus et Alertmanager ; aucun message externe n'est envoyé.
-
-Pour verifier la supervision :
-
-```powershell
-.\scripts\Test-Monitoring.ps1
-```
-
-**Resultat attendu :** `PASS`, les cibles requises `UP` et les regles chargees.
-Les scenarios de panne sont testes avec des metriques simulees.
-Les [resultats de verification](docs/validation-supervision.md) sont conserves dans le depot.
-Les [commandes pour consulter et comprendre les alertes](docs/supervision.md)
-sont dans le guide de supervision.
-
-## 11. Ajouter Redis (optionnel)
-
-Depuis le dossier du projet :
-
-```powershell
-.\scripts\Deploy-Redis.ps1
-```
-
-Le script genere un mot de passe local hors de Git. ArgoCD installe Redis et son
-exporteur, puis le script teste la connexion, l'ecriture, la lecture et l'expiration
-d'une cle fictive. Une relance conserve le mot de passe.
-
-**Resultat attendu :** `PASS: Redis requires authentication`, puis les controles
-de supervision passent si elle est installee. Dans Grafana, **Redis disponible**
-affiche **1**. Une quatrieme alerte detecte Redis indisponible.
-
-Pour verifier Redis plus tard :
-
-```powershell
-.\scripts\Test-Redis.ps1
-```
-
-Redis est ici un cache temporaire : ses donnees peuvent disparaitre. L'application
-web n'utilise pas encore Redis. Les [details et le diagnostic](docs/redis.md)
-sont dans le guide Redis.
-
-## En cas de problème
-
-| Problème | Vérification |
-| --- | --- |
-| Docker ne répond pas | Démarrer Docker Desktop, puis relancer `docker version`. |
-| GitHub refuse l'accès | Vérifier le compte Git pour la CI et la deploy key pour ArgoCD. |
-| ArgoCD ne se synchronise pas | `kubectl --context kind-devops-lab -n argocd get application devops-demo -o yaml` |
-| Un pod reste bloqué | `kubectl --context kind-devops-lab -n demo get events --sort-by=.metadata.creationTimestamp` |
-| Un port est déjà occupé | Vérifier les terminaux de port-forward déjà ouverts. |
-| Le script signale une ressource incompatible | Inspecter son contenu avant toute suppression. |
-
-## Avancement
-
-| Critère | État |
-| --- | --- |
-| Déploiement automatique | Vérifié |
-| CI locale et rollback GitOps | Vérifiés : version 1 → 2 → 1 |
-| PostgreSQL et son volume | Vérifiés |
-| Redis optionnel et sa supervision | Vérifiés : authentification, écriture/lecture et disponibilité |
-| Sauvegarde automatique et restauration PostgreSQL | Vérifiées |
-| Supervision et trois alertes | Vérifiées : collecte réelle et tests de règles simulés |
-| Runbook, note de recul, démo de 20 minutes | En cours |
-| Relance complète sur un PC neuf en moins de 30 minutes | À mesurer en fin de lab |
-
-La publication de la version 2 et le retour à la version 1 ont été vérifiés le 16 octobre 2026.
-Les [résultats des tests](docs/validation-jour1.md) sont conservés dans le dépôt.
-La relance sur le lab existant a été testée dans Windows PowerShell.
-Le [runbook](docs/runbook.md) regroupe les opérations courantes.
-Les détails du registry sont dans [docs/registry.md](docs/registry.md).
+Le déploiement, le rollback, la restauration et la supervision ont été vérifiés
+sur le lab. La relance complète sur un PC neuf en moins de 30 minutes reste à mesurer.

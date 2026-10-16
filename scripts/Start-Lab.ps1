@@ -60,7 +60,7 @@ try {
         Invoke-Checked docker @('exec', $nodeName, 'crictl', 'pull', $image)
     }
     Invoke-Checked kubectl @('--context', 'kind-devops-lab', 'apply', '--dry-run=client', '-k', (Join-Path $projectRoot 'k8s/demo'))
-    Write-Host 'Infrastructure ready. Follow README step 5 to deploy through ArgoCD.'
+    Write-Host 'Infrastructure ready. Follow the README to connect GitHub and deploy the services.'
 } finally {
     $env:DOCKER_CONTEXT = $previousDockerContext
 }
