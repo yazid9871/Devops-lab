@@ -2,7 +2,7 @@
   "uid": "devops-lab",
   "title": "DevOps Lab",
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "timezone": "browser",
   "refresh": "15s",
   "time": {
@@ -453,7 +453,7 @@
           "expr": "label_join(((((max by (namespace,pod,phase) (kube_pod_status_phase{namespace=~\"${namespace:regex}\",phase=~\"${phase:regex}\"} == 1)) * on (namespace,pod) group_left(ready) count_values by (namespace,pod) (\"ready\", (sum by (namespace,pod) (kube_pod_container_status_ready{namespace=~\"${namespace:regex}\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\"${namespace:regex}\"})))) * on (namespace,pod) group_left(containers) count_values by (namespace,pod) (\"containers\", (count by (namespace,pod) (kube_pod_container_info{namespace=~\"${namespace:regex}\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\"${namespace:regex}\"})))) * on (namespace,pod) group_left(restarts) count_values by (namespace,pod) (\"restarts\", (sum by (namespace,pod) (kube_pod_container_status_restarts_total{namespace=~\"${namespace:regex}\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\"${namespace:regex}\"})))), \"readiness\", \"/\", \"ready\", \"containers\")",
           "refId": "A",
           "instant": true,
-          "format": "table"
+          "format": "time_series"
         }
       ],
       "fieldConfig": {
@@ -479,6 +479,12 @@
         }
       },
       "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {
+            "mode": "columns"
+          }
+        },
         {
           "id": "organize",
           "options": {

@@ -12,7 +12,7 @@ Verification sur le cluster local `kind-devops-lab`, sous Windows PowerShell 5.1
 | Sauvegarde planifiee | Metrique de dernier succes presente |
 | Regles d'alerte | Trois regles chargees, saines et inactives sur le lab sain |
 | Configuration et tests `promtool` | `SUCCESS` |
-| Grafana | Authentification avec le Secret local reussie ; dashboard `devops-lab` avec six panneaux |
+| Grafana | Authentification avec le Secret local reussie ; dashboard `devops-lab` avec dix panneaux apres ajout de l'inventaire des pods |
 | Source Grafana | API de sante : `OK`, requete Prometheus reussie |
 | Volumes | Prometheus 2 Gi et Grafana 1 Gi, tous deux `Bound` |
 | Donnees PostgreSQL apres installation | Quatre lignes, empreinte `f121a32a1b0ea22fa13675810e2a3b93`, identique avant/apres |
@@ -42,6 +42,18 @@ kubectl --context kind-devops-lab -n argocd get applications
 Les tests de l'API Grafana authentifiee et de sa source ont ete effectues
 separement via le tunnel local, en lisant le Secret sans l'afficher.
 Le script controle automatiquement sa sante HTTP et celle de sa base interne.
+
+## Tableau des pods
+
+Le 16 octobre, la requete du tableau a ete comparee a `kubectl get pods -A` :
+**28 pods presents**, dont **24 actifs** et **4 termines**, au moment du controle.
+Ces nombres evoluent avec les executions de sauvegarde et les deploiements.
+Le script verifie tous les noms, la presence des champs conteneurs prets et
+redemarrages, ainsi que le filtre `namespace=data`, `etat=Running`.
+La requete passee par l'API de source de donnees Grafana renvoie bien les labels
+des pods. La transformation `labelsToFields` les convertit en colonnes du tableau.
+Le comptage couvre desormais aussi les pods `argocd`, `kube-system` et
+`local-path-storage`.
 
 ## Versions installees
 
