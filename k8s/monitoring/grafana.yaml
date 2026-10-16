@@ -1,0 +1,156 @@
+apiVersion: "v1"
+kind: "List"
+items:
+  -
+    apiVersion: "v1"
+    kind: "PersistentVolumeClaim"
+    metadata:
+      name: "grafana-data"
+      namespace: "monitoring"
+    spec:
+      accessModes:
+        - "ReadWriteOnce"
+      storageClassName: "standard"
+      resources:
+        requests:
+          storage: "1Gi"
+  -
+    apiVersion: "v1"
+    kind: "Service"
+    metadata:
+      name: "grafana"
+      namespace: "monitoring"
+    spec:
+      selector:
+        app: "grafana"
+      ports:
+        -
+          name: "web"
+          port: 3000
+          targetPort: "web"
+  -
+    apiVersion: "apps/v1"
+    kind: "Deployment"
+    metadata:
+      name: "grafana"
+      namespace: "monitoring"
+    spec:
+      replicas: 1
+      strategy:
+        type: "Recreate"
+      selector:
+        matchLabels:
+          app: "grafana"
+      template:
+        metadata:
+          labels:
+            app: "grafana"
+        spec:
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 472
+            runAsGroup: 472
+            fsGroup: 472
+            seccompProfile:
+              type: "RuntimeDefault"
+          containers:
+            -
+              name: "grafana"
+              image: "grafana/grafana:13.2.4@sha256:dbbc38ea21103cefb50396340cd88afec779c7e070b0a7bf5a75b4ce46651d3f"
+              ports:
+                -
+                  name: "web"
+                  containerPort: 3000
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - "ALL"
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "128Mi"
+                limits:
+                  cpu: "500m"
+                  memory: "512Mi"
+              volumeMounts:
+                -
+                  name: "datasources"
+                  mountPath: "/etc/grafana/provisioning/datasources"
+                  readOnly: true
+                -
+                  name: "providers"
+                  mountPath: "/etc/grafana/provisioning/dashboards"
+                  readOnly: true
+                -
+                  name: "dashboards"
+                  mountPath: "/var/lib/grafana/dashboards"
+                  readOnly: true
+                -
+                  name: "storage"
+                  mountPath: "/var/lib/grafana"
+                -
+                  name: "tmp"
+                  mountPath: "/tmp"
+              readinessProbe:
+                httpGet:
+                  path: "/api/health"
+                  port: "web"
+                initialDelaySeconds: 5
+                periodSeconds: 5
+              livenessProbe:
+                httpGet:
+                  path: "/api/health"
+                  port: "web"
+                initialDelaySeconds: 30
+                periodSeconds: 15
+              env:
+                -
+                  name: "GF_USERS_ALLOW_SIGN_UP"
+                  value: "false"
+                -
+                  name: "GF_AUTH_ANONYMOUS_ENABLED"
+                  value: "false"
+                -
+                  name: "GF_ANALYTICS_REPORTING_ENABLED"
+                  value: "false"
+                -
+                  name: "GF_ANALYTICS_CHECK_FOR_UPDATES"
+                  value: "false"
+                -
+                  name: "GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES"
+                  value: "false"
+                -
+                  name: "GF_SECURITY_ADMIN_USER"
+                  valueFrom:
+                    secretKeyRef:
+                      name: "lab-grafana-admin"
+                      key: "admin-user"
+                -
+                  name: "GF_SECURITY_ADMIN_PASSWORD"
+                  valueFrom:
+                    secretKeyRef:
+                      name: "lab-grafana-admin"
+                      key: "admin-password"
+          volumes:
+            -
+              name: "datasources"
+              configMap:
+                name: "grafana-datasources"
+            -
+              name: "providers"
+              configMap:
+                name: "grafana-providers"
+            -
+              name: "dashboards"
+              configMap:
+                name: "grafana-dashboard"
+            -
+              name: "storage"
+              persistentVolumeClaim:
+                claimName: "grafana-data"
+            -
+              name: "tmp"
+              emptyDir: {}

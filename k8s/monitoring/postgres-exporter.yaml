@@ -1,0 +1,100 @@
+apiVersion: "v1"
+kind: "List"
+items:
+  -
+    apiVersion: "v1"
+    kind: "Service"
+    metadata:
+      name: "postgres-exporter"
+      namespace: "data"
+    spec:
+      selector:
+        app: "postgres-exporter"
+      ports:
+        -
+          name: "web"
+          port: 9187
+          targetPort: "web"
+  -
+    apiVersion: "apps/v1"
+    kind: "Deployment"
+    metadata:
+      name: "postgres-exporter"
+      namespace: "data"
+    spec:
+      replicas: 1
+      strategy:
+        type: "Recreate"
+      selector:
+        matchLabels:
+          app: "postgres-exporter"
+      template:
+        metadata:
+          labels:
+            app: "postgres-exporter"
+        spec:
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            fsGroup: 65534
+            seccompProfile:
+              type: "RuntimeDefault"
+          containers:
+            -
+              name: "postgres-exporter"
+              image: "quay.io/prometheuscommunity/postgres-exporter:v0.20.1@sha256:ac5ec343104fae0e2d84a27bb8d69b38430a11910c5382cad85d478d2bab713e"
+              ports:
+                -
+                  name: "web"
+                  containerPort: 9187
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - "ALL"
+              resources:
+                requests:
+                  cpu: "50m"
+                  memory: "64Mi"
+                limits:
+                  cpu: "500m"
+                  memory: "256Mi"
+              volumeMounts:
+                -
+                  name: "tmp"
+                  mountPath: "/tmp"
+              readinessProbe:
+                httpGet:
+                  path: "/"
+                  port: "web"
+                initialDelaySeconds: 5
+                periodSeconds: 5
+              livenessProbe:
+                httpGet:
+                  path: "/"
+                  port: "web"
+                initialDelaySeconds: 30
+                periodSeconds: 15
+              env:
+                -
+                  name: "DATA_SOURCE_URI"
+                  value: "postgres.data.svc.cluster.local:5432/lab?sslmode=disable"
+                -
+                  name: "DATA_SOURCE_USER"
+                  valueFrom:
+                    secretKeyRef:
+                      name: "postgres-credentials"
+                      key: "username"
+                -
+                  name: "DATA_SOURCE_PASS"
+                  valueFrom:
+                    secretKeyRef:
+                      name: "postgres-credentials"
+                      key: "password"
+          volumes:
+            -
+              name: "tmp"
+              emptyDir: {}

@@ -1,0 +1,34 @@
+groups:
+  -
+    name: "devops-lab"
+    rules:
+      -
+        alert: "LabPodError"
+        expr: "max by (namespace,pod) (kube_pod_status_phase{namespace=~\"demo|data\",phase=\"Failed\"} == 1) or max by (namespace,pod) (kube_pod_container_status_waiting_reason{namespace=~\"demo|data\",reason=~\"CrashLoopBackOff|ImagePullBackOff|ErrImagePull|CreateContainerConfigError\"} == 1)"
+        for: "1m"
+        labels:
+          severity: "warning"
+          lab: "devops"
+        annotations:
+          summary: "Un pod du lab est en erreur depuis une minute."
+          runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"
+      -
+        alert: "LabPostgresUnavailable"
+        expr: "(pg_up{job=\"postgres\"} == 0) or (up{job=\"postgres\"} == 0) or absent(pg_up{job=\"postgres\"})"
+        for: "1m"
+        labels:
+          severity: "critical"
+          lab: "devops"
+        annotations:
+          summary: "PostgreSQL ou son exporteur ne repond plus depuis une minute."
+          runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"
+      -
+        alert: "LabBackupFailed"
+        expr: "max by (namespace,job_name) (kube_job_status_failed{namespace=\"data\",job_name=~\"postgres-backup-.*|backup-manual-.*\"} > 0) or (time() - kube_cronjob_status_last_successful_time{namespace=\"data\",cronjob=\"postgres-backup\"} > 900) or absent(kube_cronjob_status_last_successful_time{namespace=\"data\",cronjob=\"postgres-backup\"})"
+        for: "1m"
+        labels:
+          severity: "warning"
+          lab: "devops"
+        annotations:
+          summary: "Une sauvegarde a echoue ou aucun succes recent (15 min) est visible."
+          runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"

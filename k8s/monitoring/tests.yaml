@@ -1,0 +1,256 @@
+rule_files:
+  - "/etc/prometheus/rules/alerts.yaml"
+evaluation_interval: "15s"
+tests:
+  -
+    name: "LabPodError 0"
+    interval: "1m"
+    input_series:
+      -
+        series: "pg_up{job=\"postgres\"}"
+        values: "1+0x30"
+      -
+        series: "up{job=\"postgres\"}"
+        values: "1+0x30"
+      -
+        series: "kube_cronjob_status_last_successful_time{namespace=\"data\",cronjob=\"postgres-backup\"}"
+        values: "0+60x30"
+      -
+        series: "kube_pod_status_phase{namespace=\"demo\",pod=\"broken\",phase=\"Failed\"}"
+        values: "1+0x5"
+    alert_rule_test:
+      -
+        eval_time: "30s"
+        alertname: "LabPodError"
+        exp_alerts: []
+      -
+        eval_time: "2m"
+        alertname: "LabPodError"
+        exp_alerts:
+          -
+            exp_labels:
+              severity: "warning"
+              lab: "devops"
+              namespace: "demo"
+              pod: "broken"
+            exp_annotations:
+              summary: "Un pod du lab est en erreur depuis une minute."
+              runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"
+  -
+    name: "LabPodError 1"
+    interval: "1m"
+    input_series:
+      -
+        series: "pg_up{job=\"postgres\"}"
+        values: "1+0x30"
+      -
+        series: "up{job=\"postgres\"}"
+        values: "1+0x30"
+      -
+        series: "kube_cronjob_status_last_successful_time{namespace=\"data\",cronjob=\"postgres-backup\"}"
+        values: "0+60x30"
+      -
+        series: "kube_pod_container_status_waiting_reason{namespace=\"data\",pod=\"broken\",reason=\"CrashLoopBackOff\"}"
+        values: "1+0x5"
+    alert_rule_test:
+      -
+        eval_time: "30s"
+        alertname: "LabPodError"
+        exp_alerts: []
+      -
+        eval_time: "2m"
+        alertname: "LabPodError"
+        exp_alerts:
+          -
+            exp_labels:
+              severity: "warning"
+              lab: "devops"
+              namespace: "data"
+              pod: "broken"
+            exp_annotations:
+              summary: "Un pod du lab est en erreur depuis une minute."
+              runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"
+  -
+    name: "LabPostgresUnavailable 2"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"postgres\"}"
+        values: "1+0x30"
+      -
+        series: "kube_cronjob_status_last_successful_time{namespace=\"data\",cronjob=\"postgres-backup\"}"
+        values: "0+60x30"
+      -
+        series: "pg_up{job=\"postgres\"}"
+        values: "0+0x5"
+    alert_rule_test:
+      -
+        eval_time: "30s"
+        alertname: "LabPostgresUnavailable"
+        exp_alerts: []
+      -
+        eval_time: "2m"
+        alertname: "LabPostgresUnavailable"
+        exp_alerts:
+          -
+            exp_labels:
+              severity: "critical"
+              lab: "devops"
+              job: "postgres"
+            exp_annotations:
+              summary: "PostgreSQL ou son exporteur ne repond plus depuis une minute."
+              runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"
+  -
+    name: "LabPostgresUnavailable 3"
+    interval: "1m"
+    input_series:
+      -
+        series: "pg_up{job=\"postgres\"}"
+        values: "1+0x30"
+      -
+        series: "kube_cronjob_status_last_successful_time{namespace=\"data\",cronjob=\"postgres-backup\"}"
+        values: "0+60x30"
+      -
+        series: "up{job=\"postgres\"}"
+        values: "0+0x5"
+    alert_rule_test:
+      -
+        eval_time: "30s"
+        alertname: "LabPostgresUnavailable"
+        exp_alerts: []
+      -
+        eval_time: "2m"
+        alertname: "LabPostgresUnavailable"
+        exp_alerts:
+          -
+            exp_labels:
+              severity: "critical"
+              lab: "devops"
+              job: "postgres"
+            exp_annotations:
+              summary: "PostgreSQL ou son exporteur ne repond plus depuis une minute."
+              runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"
+  -
+    name: "LabBackupFailed 4"
+    interval: "1m"
+    input_series:
+      -
+        series: "pg_up{job=\"postgres\"}"
+        values: "1+0x30"
+      -
+        series: "up{job=\"postgres\"}"
+        values: "1+0x30"
+      -
+        series: "kube_cronjob_status_last_successful_time{namespace=\"data\",cronjob=\"postgres-backup\"}"
+        values: "0+60x30"
+      -
+        series: "kube_job_status_failed{namespace=\"data\",job_name=\"postgres-backup-test\",reason=\"BackoffLimitExceeded\"}"
+        values: "1+0x5"
+    alert_rule_test:
+      -
+        eval_time: "30s"
+        alertname: "LabBackupFailed"
+        exp_alerts: []
+      -
+        eval_time: "2m"
+        alertname: "LabBackupFailed"
+        exp_alerts:
+          -
+            exp_labels:
+              severity: "warning"
+              lab: "devops"
+              namespace: "data"
+              job_name: "postgres-backup-test"
+            exp_annotations:
+              summary: "Une sauvegarde a echoue ou aucun succes recent (15 min) est visible."
+              runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"
+  -
+    name: "LabBackupFailed 5"
+    interval: "1m"
+    input_series:
+      -
+        series: "pg_up{job=\"postgres\"}"
+        values: "1+0x30"
+      -
+        series: "up{job=\"postgres\"}"
+        values: "1+0x30"
+      -
+        series: "kube_cronjob_status_last_successful_time{namespace=\"data\",cronjob=\"postgres-backup\"}"
+        values: "0+0x30"
+    alert_rule_test:
+      -
+        eval_time: "30s"
+        alertname: "LabBackupFailed"
+        exp_alerts: []
+      -
+        eval_time: "17m"
+        alertname: "LabBackupFailed"
+        exp_alerts:
+          -
+            exp_labels:
+              severity: "warning"
+              lab: "devops"
+              namespace: "data"
+              cronjob: "postgres-backup"
+            exp_annotations:
+              summary: "Une sauvegarde a echoue ou aucun succes recent (15 min) est visible."
+              runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"
+  -
+    name: "Healthy lab and completed backup"
+    interval: "1m"
+    input_series:
+      -
+        series: "pg_up{job=\"postgres\"}"
+        values: "1+0x30"
+      -
+        series: "up{job=\"postgres\"}"
+        values: "1+0x30"
+      -
+        series: "kube_cronjob_status_last_successful_time{namespace=\"data\",cronjob=\"postgres-backup\"}"
+        values: "0+60x30"
+      -
+        series: "kube_pod_status_phase{namespace=\"data\",pod=\"postgres-backup-ok\",phase=\"Succeeded\"}"
+        values: "1+0x30"
+    alert_rule_test:
+      -
+        eval_time: "20m"
+        alertname: "LabPodError"
+        exp_alerts: []
+      -
+        eval_time: "20m"
+        alertname: "LabPostgresUnavailable"
+        exp_alerts: []
+      -
+        eval_time: "20m"
+        alertname: "LabBackupFailed"
+        exp_alerts: []
+  -
+    name: "Missing exporters and missing backup success"
+    interval: "1m"
+    input_series: []
+    alert_rule_test:
+      -
+        eval_time: "2m"
+        alertname: "LabPostgresUnavailable"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "postgres"
+              severity: "critical"
+              lab: "devops"
+            exp_annotations:
+              summary: "PostgreSQL ou son exporteur ne repond plus depuis une minute."
+              runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"
+      -
+        eval_time: "2m"
+        alertname: "LabBackupFailed"
+        exp_alerts:
+          -
+            exp_labels:
+              namespace: "data"
+              cronjob: "postgres-backup"
+              severity: "warning"
+              lab: "devops"
+            exp_annotations:
+              summary: "Une sauvegarde a echoue ou aucun succes recent (15 min) est visible."
+              runbook_url: "https://github.com/yazid9871/Devops-lab/blob/main/docs/supervision.md"
