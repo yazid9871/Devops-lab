@@ -205,7 +205,9 @@ se fait avec `Backup-Postgres.ps1`.
 - **Page inaccessible** : vérifier que son terminal de tunnel est toujours ouvert ; le relancer après un changement de pod.
 - **Script refusé** : relancer `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned` dans ce terminal.
 
-Le [runbook](docs/runbook.md) contient les commandes de dépannage.
+Le [runbook](docs/runbook.md) résume le déploiement, le rollback, la restauration et les alertes.
+La [note de recul](docs/note-de-recul.md) présente les limites du lab et les risques pour une reprise en interne
+([PDF d'une page](docs/note-de-recul.pdf)).
 Les guides [sauvegarde/restauration](docs/sauvegarde-restauration.md),
 [supervision](docs/supervision.md) et [Redis](docs/redis.md) expliquent les détails.
 

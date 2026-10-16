@@ -1,27 +1,19 @@
 # Runbook du lab
 
-Exécuter les commandes dans PowerShell, depuis la racine du dépôt.
-En cas d'erreur, s'arrêter et conserver le message avant de poursuivre.
+Commandes à lancer dans **PowerShell, depuis le dossier du projet**.
+Docker Desktop doit être ouvert et le lab installé avec le [README](../README.md).
+Si une commande échoue, s'arrêter et lire son message.
 
-## Démarrer
+## 1. Déployer l'application
 
-```powershell
-.\scripts\Start-Lab.ps1
-```
-
-Lors d'une première installation, suivre le README pour la clé GitHub.
-Ensuite :
+Pour le premier déploiement sur un lab déjà préparé :
 
 ```powershell
 .\scripts\Deploy-Demo.ps1
-.\scripts\Test-Deployment.ps1
 ```
 
-Attendu : Application `Synced / Healthy`, santé `ok`, version identique à `app/VERSION`.
-
-## Publier une nouvelle version
-
-Le dépôt doit être propre, sur `main`, et synchronisé avec GitHub.
+Pour publier une nouvelle version, les changements doivent être enregistrés et
+poussés sur `main`, avec un dépôt propre et une identité Git configurée :
 
 ```powershell
 .\scripts\Publish-Demo.ps1
@@ -29,17 +21,13 @@ $deployCommit = git rev-parse HEAD
 .\scripts\Test-Deployment.ps1
 ```
 
-Le pipeline teste la page, la santé, la version et une route inconnue avant de publier.
-Il ne modifie pas directement le Deployment Kubernetes.
-Une nouvelle version utilise un nouveau tag ; les tags existants ne sont pas écrasés.
+**Attendu :** `PASS`, nouvelle version accessible et ArgoCD `Synced / Healthy`.
+Le script construit et teste l'image, la publie dans le registry local, puis pousse
+son tag dans Git. ArgoCD applique le changement ; cela peut prendre quelques minutes.
 
-Le script s'arrête au premier échec. Une image peut rester publiée si le push Git
-échoue ensuite. Les modifications locales sont conservées pour diagnostic :
-utiliser `git status`, `git diff` et le message d'erreur avant de réessayer.
+## 2. Revenir à la version précédente
 
-## Revenir à la version précédente
-
-Dans le même terminal, après une publication réussie :
+Après une publication réussie, dans le même terminal :
 
 ```powershell
 git revert --no-edit $deployCommit
@@ -47,117 +35,70 @@ git push origin main
 .\scripts\Test-Deployment.ps1
 ```
 
-Si le terminal a été fermé, retrouver le commit de déploiement dans `git log --oneline`
-et utiliser son SHA à la place de `$deployCommit`.
-Choisir un commit de publication qui n'a pas déjà été annulé.
+**Attendu :** `PASS` avec l'ancienne version. Le rollback ajoute un commit et
+réutilise l'ancienne image. Si le terminal a été fermé, retrouver le commit de
+publication avec `git log --oneline` et utiliser son SHA à la place de `$deployCommit`.
+Vérifier qu'il n'a pas déjà été annulé. Le retour arrière passe par Git, car
+ArgoCD corrigerait un changement fait avec `kubectl rollout undo`.
+Ce scénario ne valide pas le retour arrière d'une migration de base de données.
 
-Le rollback modifie `app/VERSION` et le tag Kustomize dans Git.
-ArgoCD déploie l'ancienne image conservée dans le registry.
-Ne pas utiliser `kubectl rollout undo` : ce changement serait corrigé par ArgoCD.
+## 3. Restaurer une sauvegarde PostgreSQL
 
-## Examiner un échec de déploiement
-
-```powershell
-kubectl --context kind-devops-lab -n argocd get application devops-demo -o yaml
-kubectl --context kind-devops-lab -n demo get pods
-kubectl --context kind-devops-lab -n demo get events --sort-by=.metadata.creationTimestamp
-kubectl --context kind-devops-lab -n demo logs deployment/devops-demo --tail=50
-```
-
-- Erreur Git : vérifier la deploy key en lecture seule et le Secret de connexion.
-- `ImagePullBackOff` : vérifier le registry et le tag attendu dans Git.
-- Application non prête : lire les événements et les logs avant toute modification.
-
-Les tests de déploiement et de rollback portent sur l'application web sans données.
-Ils ne valident pas un rollback de schéma PostgreSQL.
-
-## Vérifier PostgreSQL
-
-```powershell
-.\scripts\Deploy-Postgres.ps1
-.\scripts\Test-Postgres.ps1
-```
-
-Le déploiement est géré par l'Application ArgoCD `postgres-lab`.
-Le test passe par le Service PostgreSQL, utilise le mot de passe du lab,
-vérifie une écriture/lecture temporaire, compte les lignes et affiche leur empreinte.
-La donnée de contrôle est temporaire ; les trois lignes fictives restent stockées.
-
-```powershell
-kubectl --context kind-devops-lab -n data get pods,pvc
-kubectl --context kind-devops-lab -n data logs postgres-0 --tail=50
-```
-
-Attendu : `postgres-0` prêt et `postgres-data-postgres-0` en `Bound`.
-Les identifiants sont dans le Secret `postgres-credentials`.
-La relance réutilise ce Secret et le volume.
-
-Si le volume existe mais que le Secret est absent, le script s'arrête :
-retrouver les identifiants existants avant de poursuivre.
-Changer la variable du mot de passe ne met pas à jour le mot de passe d'une
-base déjà initialisée.
-
-Les données sont stockées dans le nœud kind, sur ce PC.
-La suppression du cluster ou du PVC peut les faire perdre.
-Les données ont été conservées lors du remplacement du pod pendant l'ajout du
-volume de sauvegarde. La restauration a aussi été vérifiée sur une nouvelle instance.
-
-## Sauvegarder PostgreSQL
+Les sauvegardes automatiques tournent toutes les cinq minutes. Pour en créer une
+immédiatement et exporter son archive dans `backups/` sur Windows :
 
 ```powershell
 .\scripts\Backup-Postgres.ps1
 ```
 
-Attendu : Job réussi, archive copiée dans `backups/`, SHA-256 conforme.
-La commande utilise le modèle du CronJob et affiche le nom du dossier sauvegardé.
-
-Le CronJob tourne toutes les cinq minutes et écrit sur un volume séparé :
-
-```powershell
-kubectl --context kind-devops-lab -n data get cronjob postgres-backup
-kubectl --context kind-devops-lab -n data get jobs
-```
-
-En cas d'échec, lire les logs du Job dont le nom est affiché :
-
-```powershell
-kubectl --context kind-devops-lab -n data logs job/NOM_DU_JOB
-```
-
-## Restaurer et mesurer
+Pour exécuter le scénario de restauration testé :
 
 ```powershell
 .\scripts\Test-Restore.ps1
 ```
 
-Le script ajoute une ligne fictive de contrôle, fait une sauvegarde et la restaure
-sur une nouvelle instance vide. Il refuse une cible contenant déjà des tables.
-Il conserve la source, les anciennes instances de test et les archives.
+Ce script ajoute une ligne fictive, crée une nouvelle sauvegarde, puis la restaure
+sur une **nouvelle instance vide**, avec son propre volume. La base source reste
+en place. La cible doit être vide et le SHA-256 de l'archive conforme.
 
-Attendu : `PASS`, mêmes empreintes des données et du schéma.
-Le rapport `backups/*-report.json` donne les durées de restauration et de création
-de la cible avec ses contrôles. La sauvegarde est faite avant le chronométrage.
+**Attendu :** `PASS: full database restored`, données et schéma identiques.
+Le nom de la cible, l'archive et les durées figurent dans `backups/*-report.json`.
+Le test conserve sa cible ; chaque relance crée une instance supplémentaire.
 
-La destination ne lit ni le Service ni le volume de données de la source :
-le Job utilise seulement l'archive, le Secret du lab et la nouvelle instance.
-La source reste en fonctionnement pendant ce scénario.
-Le dump concerne la base `lab` ; les rôles globaux et ACL ne sont pas restaurés.
+Ce script ne permet pas de choisir une ancienne archive ni de basculer
+l'application sur la cible. Les rôles globaux, propriétaires et ACL ne sont pas
+restaurés. Voir le [scénario détaillé](sauvegarde-restauration.md).
 
-Voir [le scénario détaillé](sauvegarde-restauration.md) et
-[les résultats vérifiés](validation-restauration.md).
+## 4. Comprendre une alerte
 
-## Alertes
+Pour voir les règles, garder ce terminal ouvert :
 
-La supervision et les trois alertes restent à ajouter.
+```powershell
+kubectl --context kind-devops-lab -n monitoring port-forward svc/prometheus 9090:9090
+```
 
-## Supervision
+Ouvrir [localhost:9090/alerts](http://localhost:9090/alerts).
+`pending` signifie que la condition attend confirmation ; `firing`, qu'elle dure
+au moins une minute. Les alertes restent locales, sans notification externe.
 
-Installer : `.\scripts\Deploy-Monitoring.ps1`. Verifier : `.\scripts\Test-Monitoring.ps1`.
+| Alerte | Ce qu'il faut vérifier |
+| --- | --- |
+| `LabPodError` | Pod en erreur dans `demo` ou `data` : événements et logs du pod. |
+| `LabPostgresUnavailable` | PostgreSQL et son exporteur : une panne de collecte peut aussi déclencher l'alerte. |
+| `LabBackupFailed` | Logs du Job, CronJob actif, espace disponible. Aucun succès depuis 15 minutes ou une métrique absente déclenche aussi l'alerte. |
+| `LabRedisUnavailable` | Redis et son exporteur, si Redis est installé. |
 
-Le [guide de supervision](supervision.md) explique les trois alertes, les interfaces et les commandes de diagnostic.
+Premières commandes utiles, dans un autre terminal du projet :
 
-## Redis optionnel
+```powershell
+kubectl --context kind-devops-lab get pods -A
+kubectl --context kind-devops-lab -n data get cronjob,jobs
+kubectl --context kind-devops-lab -n demo logs deployment/devops-demo --tail=50
+kubectl --context kind-devops-lab -n data logs postgres-0 --tail=50
+```
 
-Installer : `.\scripts\Deploy-Redis.ps1`. Verifier : `.\scripts\Test-Redis.ps1`.
-
-Le [guide Redis](redis.md) explique le cache temporaire et l'alerte Redis indisponible.
+Après correction, relancer le test concerné : `Test-Deployment.ps1`,
+`Test-Postgres.ps1`, `Test-Monitoring.ps1` ou `Test-Redis.ps1`, dans `scripts/`.
+Une règle revenue à la normale se résout automatiquement. Un ancien Job échoué
+peut garder l'alerte de sauvegarde active tant que son historique est conservé.
+Les [diagnostics détaillés](supervision.md) donnent les commandes par alerte.
