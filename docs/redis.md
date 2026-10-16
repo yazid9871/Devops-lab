@@ -30,6 +30,8 @@ Le test verifie qu'un client sans mot de passe est refuse. Il teste ensuite PING
 ecrit une cle de sonde unique via le Service Kubernetes, relit sa valeur et verifie
 son expiration. Cette cle expire seule au bout de 60 secondes. Il ne vide pas le cache.
 
+Les [resultats verifies](validation-redis.md) sont conserves dans le depot.
+
 Pour refaire les controles de supervision :
 
 ```powershell

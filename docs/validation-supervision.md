@@ -7,12 +7,12 @@ Verification sur le cluster local `kind-devops-lab`, sous Windows PowerShell 5.1
 | Application ArgoCD `monitoring-lab` | `Synced`, `Healthy` |
 | Prometheus, Grafana, Alertmanager, kube-state-metrics | Quatre Deployments disponibles dans `monitoring` |
 | Exporteur PostgreSQL | Deployment disponible dans `data` |
-| Cibles Prometheus | `prometheus`, `kube-state-metrics`, `postgres` : toutes `up` |
+| Cibles Prometheus | `prometheus`, `kube-state-metrics`, `postgres`, `redis` : toutes `up` |
 | Mesure PostgreSQL | `pg_up{job="postgres"}=1` |
 | Sauvegarde planifiee | Metrique de dernier succes presente |
-| Regles d'alerte | Trois regles chargees, saines et inactives sur le lab sain |
+| Regles d'alerte | Quatre regles chargees, saines et inactives sur le lab sain |
 | Configuration et tests `promtool` | `SUCCESS` |
-| Grafana | Authentification avec le Secret local reussie ; dashboard `devops-lab` avec dix panneaux apres ajout de l'inventaire des pods |
+| Grafana | Authentification avec le Secret local reussie ; dashboard `devops-lab` avec onze panneaux apres ajout de l'inventaire des pods |
 | Source Grafana | API de sante : `OK`, requete Prometheus reussie |
 | Volumes | Prometheus 2 Gi et Grafana 1 Gi, tous deux `Bound` |
 | Donnees PostgreSQL apres installation | Quatre lignes, empreinte `f121a32a1b0ea22fa13675810e2a3b93`, identique avant/apres |
@@ -20,7 +20,7 @@ Verification sur le cluster local `kind-devops-lab`, sous Windows PowerShell 5.1
 
 ## Ce que les tests d'alertes prouvent
 
-Les huit groupes de tests de `k8s/monitoring/tests.yaml` utilisent le fichier de
+Les treize groupes de tests de `k8s/monitoring/tests.yaml` utilisent le fichier de
 regles reel, avec des series simulees. Ils verifient : pod Failed, CrashLoopBackOff,
 base signalee indisponible, collecte PostgreSQL indisponible, Job de sauvegarde
 echoue, sauvegarde trop ancienne, metriques absentes, et absence de fausse alerte

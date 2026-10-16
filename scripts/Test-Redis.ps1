@@ -6,15 +6,9 @@ $key = 'lab:probe:' + [guid]::NewGuid().ToString('N')
 $value = [guid]::NewGuid().ToString('N')
 & kubectl --context kind-devops-lab -n data rollout status deployment/redis --timeout=180s
 if ($LASTEXITCODE -ne 0) { throw 'Redis is not ready.' }
-$check = @'
-set -eu
-unset REDISCLI_AUTH
-reply=$(redis-cli -h redis.data.svc.cluster.local --raw ping 2>&1 || true)
-case "$reply" in *NOAUTH*) printf 'AUTH_REQUIRED\n';; *) printf 'Unexpected unauthenticated response\n' >&2; exit 1;; esac
-'@
-# Run the rejection check in a subshell; the authenticated environment remains intact.
-$rejected = $check | & kubectl --context kind-devops-lab -n data exec -i deployment/redis -c redis -- sh
-if ($LASTEXITCODE -ne 0 -or $rejected -ne 'AUTH_REQUIRED') { throw 'Redis did not reject unauthenticated access.' }
+# Remove the credential for this one process only; no shell/stdin encoding needed.
+$rejected = & kubectl --context kind-devops-lab -n data exec deployment/redis -c redis -- env -u REDISCLI_AUTH redis-cli -h redis.data.svc.cluster.local --raw ping
+if (($rejected -join "`n") -notmatch 'NOAUTH') { throw 'Redis did not reject unauthenticated access.' }
 $pong = & kubectl --context kind-devops-lab -n data exec deployment/redis -c redis -- redis-cli -h redis.data.svc.cluster.local --raw ping
 if ($LASTEXITCODE -ne 0 -or $pong -ne 'PONG') { throw 'Authenticated Redis PING failed.' }
 $written = & kubectl --context kind-devops-lab -n data exec deployment/redis -c redis -- redis-cli -h redis.data.svc.cluster.local --raw SET $key $value EX 60 NX

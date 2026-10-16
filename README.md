@@ -259,11 +259,37 @@ Pour verifier la supervision :
 .\scripts\Test-Monitoring.ps1
 ```
 
-**Resultat attendu :** `PASS`, trois cibles `UP` et trois regles chargees.
+**Resultat attendu :** `PASS`, les cibles requises `UP` et les regles chargees.
 Les scenarios de panne sont testes avec des metriques simulees.
 Les [resultats de verification](docs/validation-supervision.md) sont conserves dans le depot.
 Les [commandes pour consulter et comprendre les alertes](docs/supervision.md)
 sont dans le guide de supervision.
+
+## 11. Ajouter Redis (optionnel)
+
+Depuis le dossier du projet :
+
+```powershell
+.\scripts\Deploy-Redis.ps1
+```
+
+Le script genere un mot de passe local hors de Git. ArgoCD installe Redis et son
+exporteur, puis le script teste la connexion, l'ecriture, la lecture et l'expiration
+d'une cle fictive. Une relance conserve le mot de passe.
+
+**Resultat attendu :** `PASS: Redis requires authentication`, puis les controles
+de supervision passent si elle est installee. Dans Grafana, **Redis disponible**
+affiche **1**. Une quatrieme alerte detecte Redis indisponible.
+
+Pour verifier Redis plus tard :
+
+```powershell
+.\scripts\Test-Redis.ps1
+```
+
+Redis est ici un cache temporaire : ses donnees peuvent disparaitre. L'application
+web n'utilise pas encore Redis. Les [details et le diagnostic](docs/redis.md)
+sont dans le guide Redis.
 
 ## En cas de problème
 
@@ -283,6 +309,7 @@ sont dans le guide de supervision.
 | Déploiement automatique | Vérifié |
 | CI locale et rollback GitOps | Vérifiés : version 1 → 2 → 1 |
 | PostgreSQL et son volume | Vérifiés |
+| Redis optionnel et sa supervision | Vérifiés : authentification, écriture/lecture et disponibilité |
 | Sauvegarde automatique et restauration PostgreSQL | Vérifiées |
 | Supervision et trois alertes | Vérifiées : collecte réelle et tests de règles simulés |
 | Runbook, note de recul, démo de 20 minutes | En cours |

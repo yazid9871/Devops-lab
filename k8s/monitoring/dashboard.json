@@ -2,7 +2,7 @@
   "uid": "devops-lab",
   "title": "DevOps Lab",
   "schemaVersion": 39,
-  "version": 4,
+  "version": 5,
   "timezone": "browser",
   "refresh": "15s",
   "time": {
@@ -26,7 +26,7 @@
       },
       "targets": [
         {
-          "expr": "count(kube_pod_info{namespace=~\"${namespace:regex}\"}) or vector(0)",
+          "expr": "count((timestamp(kube_pod_info{namespace=~\"${namespace:regex}\"}) > time() - 60)) or vector(0)",
           "refId": "A",
           "instant": true
         }
@@ -65,7 +65,7 @@
       },
       "targets": [
         {
-          "expr": "count(kube_pod_status_phase{namespace=~\"${namespace:regex}\",phase=~\"Running|Pending\"} == 1) or vector(0)",
+          "expr": "count(kube_pod_status_phase{namespace=~\"${namespace:regex}\",phase=~\"Running|Pending\"} == 1 and on (namespace,pod) (timestamp(kube_pod_info{namespace=~\"${namespace:regex}\"}) > time() - 60)) or vector(0)",
           "refId": "A",
           "instant": true
         }
@@ -104,7 +104,7 @@
       },
       "targets": [
         {
-          "expr": "count(kube_pod_status_phase{namespace=~\"${namespace:regex}\",phase=~\"Succeeded|Failed\"} == 1) or vector(0)",
+          "expr": "count(kube_pod_status_phase{namespace=~\"${namespace:regex}\",phase=~\"Succeeded|Failed\"} == 1 and on (namespace,pod) (timestamp(kube_pod_info{namespace=~\"${namespace:regex}\"}) > time() - 60)) or vector(0)",
           "refId": "A",
           "instant": true
         }
@@ -450,7 +450,7 @@
       },
       "targets": [
         {
-          "expr": "label_join(((((max by (namespace,pod,phase) (kube_pod_status_phase{namespace=~\"${namespace:regex}\",phase=~\"${phase:regex}\"} == 1)) * on (namespace,pod) group_left(ready) count_values by (namespace,pod) (\"ready\", (sum by (namespace,pod) (kube_pod_container_status_ready{namespace=~\"${namespace:regex}\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\"${namespace:regex}\"})))) * on (namespace,pod) group_left(containers) count_values by (namespace,pod) (\"containers\", (count by (namespace,pod) (kube_pod_container_info{namespace=~\"${namespace:regex}\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\"${namespace:regex}\"})))) * on (namespace,pod) group_left(restarts) count_values by (namespace,pod) (\"restarts\", (sum by (namespace,pod) (kube_pod_container_status_restarts_total{namespace=~\"${namespace:regex}\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\"${namespace:regex}\"})))), \"readiness\", \"/\", \"ready\", \"containers\")",
+          "expr": "(label_join(((((max by (namespace,pod,phase) (kube_pod_status_phase{namespace=~\"${namespace:regex}\",phase=~\"${phase:regex}\"} == 1)) * on (namespace,pod) group_left(ready) count_values by (namespace,pod) (\"ready\", (sum by (namespace,pod) (kube_pod_container_status_ready{namespace=~\"${namespace:regex}\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\"${namespace:regex}\"})))) * on (namespace,pod) group_left(containers) count_values by (namespace,pod) (\"containers\", (count by (namespace,pod) (kube_pod_container_info{namespace=~\"${namespace:regex}\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\"${namespace:regex}\"})))) * on (namespace,pod) group_left(restarts) count_values by (namespace,pod) (\"restarts\", (sum by (namespace,pod) (kube_pod_container_status_restarts_total{namespace=~\"${namespace:regex}\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\"${namespace:regex}\"})))), \"readiness\", \"/\", \"ready\", \"containers\")) and on (namespace,pod) (timestamp(kube_pod_info{namespace=~\"${namespace:regex}\"}) > time() - 60)",
           "refId": "A",
           "instant": true,
           "format": "time_series"

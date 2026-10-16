@@ -15,6 +15,8 @@ flowchart LR
   KSM[kube-state-metrics : état des pods et Jobs] --> Prom[Prometheus]
   PG[PostgreSQL] --> Export[postgres-exporter]
   Export --> Prom
+  Redis[Redis optionnel] --> RedisExport[redis-exporter]
+  RedisExport --> Prom
   Prom --> Graf[Grafana : DevOps Lab]
   Prom --> AM[Alertmanager : alertes locales]
 ```
@@ -37,8 +39,9 @@ Pour vérifier plus tard :
 .\scripts\Test-Monitoring.ps1
 ```
 
-Le test contrôle les trois cibles de collecte, `pg_up=1`, la présence d'une
-sauvegarde planifiée réussie, les trois règles, Grafana et Alertmanager. Il teste
+Le test contrôle les trois cibles de base, `pg_up=1`, la présence d'une
+sauvegarde planifiée réussie, les quatre règles, Grafana et Alertmanager. Si Redis
+est installé, sa quatrième cible doit répondre et `redis_up` doit valoir 1. Il teste
 les erreurs avec des séries simulées et `promtool`, sans arrêter la base.
 Sur une installation neuve, attendre la première sauvegarde (jusqu'à cinq minutes)
 si le test signale qu'aucun succès n'est encore visible.
@@ -73,6 +76,8 @@ Les conteneurs d'initialisation ne sont pas inclus dans ces deux derniers champs
 Le filtre **Etat des pods** s'applique seulement au tableau. Les mesures sont
 rafraîchies toutes les 15 secondes ; un changement peut mettre quelques secondes
 à apparaître. Un pod supprimé disparaît du tableau après la collecte suivante.
+Après un redémarrage de Prometheus, les compteurs et le tableau ignorent aussi les
+séries de pods dont la dernière collecte date de plus de 60 secondes.
 
 Pour les règles Prometheus, ouvrir un autre terminal :
 
@@ -90,6 +95,10 @@ Ouvrir http://localhost:9093. Une page sans alerte active est normale si tout va
 `Ctrl+C` ferme uniquement le tunnel du terminal concerné.
 
 ## Les trois alertes et les premières vérifications
+
+Ces trois alertes couvrent les critères du sujet. Une quatrième,
+`LabRedisUnavailable`, surveille le Redis optionnel : voir le [guide Redis](redis.md).
+Le panneau **Redis disponible (1 = oui)** est ajouté au dashboard.
 
 Chaque condition doit durer une minute avant de passer de `pending` à `firing`.
 

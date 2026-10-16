@@ -155,3 +155,9 @@ La supervision et les trois alertes restent à ajouter.
 Installer : `.\scripts\Deploy-Monitoring.ps1`. Verifier : `.\scripts\Test-Monitoring.ps1`.
 
 Le [guide de supervision](supervision.md) explique les trois alertes, les interfaces et les commandes de diagnostic.
+
+## Redis optionnel
+
+Installer : `.\scripts\Deploy-Redis.ps1`. Verifier : `.\scripts\Test-Redis.ps1`.
+
+Le [guide Redis](redis.md) explique le cache temporaire et l'alerte Redis indisponible.
