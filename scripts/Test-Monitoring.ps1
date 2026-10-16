@@ -62,8 +62,15 @@ do {
     $pods = (Invoke-MonitorKubectl get pods -A -o json | ConvertFrom-Json).items
     $expected = @($pods | ForEach-Object { "$($_.metadata.namespace)/$($_.metadata.name)" } | Sort-Object)
     $actual = @($table.result | ForEach-Object { "$($_.metric.namespace)/$($_.metric.pod)" } | Sort-Object)
-    if (($actual -join ',') -eq ($expected -join ',')) { break }
-    if ((Get-Date) -gt $deadline) { throw 'Pod table does not match Kubernetes after waiting for collection.' }
+    $sameSnapshot = ($actual -join ',') -eq ($expected -join ',')
+    if ($sameSnapshot) {
+        foreach ($row in $table.result) {
+            $source = $pods | Where-Object { $_.metadata.namespace -eq $row.metric.namespace -and $_.metadata.name -eq $row.metric.pod }
+            if ($source.status.phase -ne $row.metric.phase) { $sameSnapshot = $false; break }
+        }
+    }
+    if ($sameSnapshot) { break }
+    if ((Get-Date) -gt $deadline) { throw 'Pod names or states do not match Kubernetes after waiting for collection.' }
     Start-Sleep -Seconds 5
 } while ($true)
 foreach ($row in $table.result) {
@@ -77,8 +84,6 @@ if ($podQuery.Contains('${namespace:regex}') -or $podQuery.Contains('${phase:reg
 foreach ($row in $table.result) {
     $expectedOrder = if ($row.metric.namespace -eq 'demo') { '0' } else { '1' }
     if ($row.metric.pod_order -ne $expectedOrder) { throw 'Demo-first sort priority is incorrect.' }
-    $source = $pods | Where-Object { $_.metadata.namespace -eq $row.metric.namespace -and $_.metadata.name -eq $row.metric.pod }
-    if ($source.status.phase -ne $row.metric.phase) { throw 'Pod phase differs from Kubernetes. Retry after the next scrape.' }
 }
 Write-Host "PASS: pod table matches all $($actual.Count) Kubernetes pods in all states; demo-first priority, readiness and restarts checked."
 Write-Host "PASS: $($expectedJobs.Count) required scrape targets UP, database metrics healthy, scheduled backup visible, 4 healthy rules, Grafana and Alertmanager ready."

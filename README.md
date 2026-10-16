@@ -29,7 +29,7 @@ Le temps de téléchargement dépend de la connexion ; la durée sur un PC neuf 
 
 ## 1. Créer sa copie sur GitHub
 
-Sur le dépôt modèle, cliquer sur **Use this template → Create a new repository**.
+Ouvrir le [dépôt modèle](https://github.com/yazid9871/Devops-lab), puis cliquer sur **Use this template → Create a new repository**.
 Choisir son compte, le nom **Devops-lab** et la visibilité **Private**.
 Le dépôt modèle étant privé, il faut y avoir accès. Le modèle se copie avec sa branche `main`.
 
@@ -59,7 +59,8 @@ Le script prépare le lab, puis affiche une clé publique et le lien GitHub où 
 
 L'installation reprend seule. À la fin : **`PASS`**, les services fonctionnent
 et une sauvegarde a été restaurée dans une instance neuve. La durée de chaque
-étape est enregistrée dans `work/install-report.json`.
+étape est enregistrée dans `work/install-report.json`. Le rapport mesure la commande,
+avec l’attente de la clé GitHub, mais sans la copie du dépôt et son clonage.
 
 Les mots de passe et la clé privée restent hors de Git. Le test de restauration
 ajoute une ligne fictive et garde sa nouvelle instance, sans remplacer la base source.
