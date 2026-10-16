@@ -1,148 +1,153 @@
 # Lab DevOps local
 
-Projet pédagogique : Kubernetes avec kind, déploiement GitOps avec ArgoCD,
-puis sauvegarde et restauration PostgreSQL. Le lab est en cours de construction.
+Ce lab sert à tester une chaîne de déploiement sur un PC, avant de réfléchir
+à son utilisation dans l'infrastructure de l'équipe.
 
-## État validé
+**Le projet est en cours.** Aujourd'hui, le cluster, ArgoCD, le registry et
+l'application Docker fonctionnent. ArgoCD ne déploie pas encore l'application.
+La CI, le rollback et la sauvegarde PostgreSQL restent à réaliser.
 
-- Cluster `devops-lab` : nœud Ready et pods système prêts.
-- ArgoCD : pods prêts et connexion à l'interface confirmée par l'utilisateur.
-- Application de démonstration validée dans Docker ; manifestes Kubernetes préparés.
+## 1. Avant de commencer
 
-## Installation ArgoCD
+Il faut un PC Windows avec :
 
-Prérequis : Docker Desktop démarré avec le moteur Linux, kind et kubectl installés.
-Les commandes suivantes ont été exécutées dans PowerShell pendant la mise en place :
+- Docker Desktop démarré, en mode conteneurs Linux ;
+- Git, kind et kubectl installés et accessibles dans PowerShell ;
+- une connexion Internet pour télécharger les images ;
+- un compte GitHub autorisé à lire ce dépôt privé.
+
+Pas besoin d'installer Python, Helm ou ArgoCD sur Windows.
+Python est inclus dans l'image Docker et ArgoCD tourne dans Kubernetes.
+
+Ouvrir PowerShell et vérifier :
 
 ```powershell
-kind create cluster --name devops-lab --wait 120s
-kubectl --context kind-devops-lab get nodes
-kubectl --context kind-devops-lab get pods -A
-kubectl --context kind-devops-lab create namespace argocd
-kubectl --context kind-devops-lab apply --server-side -n argocd -f .\infra\argocd\install.yaml
-kubectl --context kind-devops-lab -n argocd get pods
+docker version
+git --version
+kind version
+kubectl version --client
 ```
 
-Ne pas recréer un cluster déjà existant. Vérifier son existence avec `kind get clusters`.
+Docker doit afficher **Client** et **Server**. Si une commande est introuvable,
+ouvrir un nouveau PowerShell après son installation.
 
-Le manifeste conservé dans `infra/argocd/install.yaml` utilise ArgoCD v3.5.5.
-Il a été téléchargé depuis :
-https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-La référence distante `stable` évolue ; la copie versionnée conserve le fichier utilisé.
+## 2. Récupérer le projet
 
-## Interface locale
+Pour une première installation :
+
+```powershell
+Set-Location "$HOME\Desktop"
+git clone https://github.com/yazid9871/Devops-lab.git
+Set-Location .\Devops-lab
+```
+
+Si GitHub demande une connexion, utiliser un compte qui a accès au dépôt.
+Ne pas mettre de token dans la commande.
+
+Si le dossier existe déjà sur ce PC, utiliser simplement :
+
+```powershell
+Set-Location "$HOME\Desktop\Devops-lab"
+```
+
+## 3. Démarrer le lab
+
+Depuis le dossier du projet, autoriser les scripts locaux dans ce terminal, puis lancer :
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+.\scripts\Start-Lab.ps1
+```
+
+Le script prépare les éléments déjà disponibles :
+
+1. Crée le cluster `devops-lab` s'il n'existe pas.
+2. Configure le registry local et son stockage.
+3. Installe ArgoCD depuis le manifeste conservé dans le dépôt.
+4. Construit l'image de l'application et la publie dans le registry.
+5. Démarre une démonstration Docker et vérifie sa santé.
+
+Il réutilise les ressources compatibles déjà présentes et ne supprime aucune donnée.
+En cas d'erreur, il s'arrête : lire le message avant de continuer.
+
+**Résultat attendu :** le script termine par `Ready: http://localhost:18080`.
+Ouvrir [l'application](http://localhost:18080) : elle affiche « DevOps Lab — version 1 ».
+
+## 4. Ouvrir ArgoCD
+
+Dans un PowerShell qui restera ouvert :
 
 ```powershell
 kubectl --context kind-devops-lab -n argocd port-forward svc/argocd-server 8080:443
 ```
 
-Laisser ce terminal ouvert et accéder à https://localhost:8080.
-Le certificat initial est autosigné. Le compte initial est `admin`.
-Ne jamais enregistrer de mot de passe, de kubeconfig ou de sauvegarde de base dans Git.
+Ouvrir [ArgoCD](https://localhost:8080). Accepter l'avertissement de certificat
+autosigné uniquement pour cette adresse locale.
 
-## Application de démonstration — étape validée
-
-L'application Python utilise uniquement la bibliothèque standard. Elle expose :
-- `/` : page « DevOps Lab — version 1 » ;
-- `/healthz` : JSON `{"status":"ok"}` ;
-- `/version` : JSON `{"version":"1"}`.
-Une route inconnue renvoie HTTP 404. La version provient de `app/VERSION`,
-copié dans l'image. Le serveur HTTP convient à la démonstration locale.
-
-### Construire et lancer dans PowerShell
-
-Depuis la racine du dépôt, avec Docker Desktop démarré :
+Pour une première connexion, ouvrir un deuxième PowerShell et récupérer le
+mot de passe initial :
 
 ```powershell
-docker --context desktop-linux build --tag devops-demo:v1 .\app
-docker --context desktop-linux run --detach --name devops-demo-preview --label devops.lab=preview --read-only --cap-drop ALL --security-opt no-new-privileges --publish 127.0.0.1:18080:8080 devops-demo:v1
+$encoded = kubectl --context kind-devops-lab -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}'
+[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encoded))
 ```
 
-Le nom du conteneur doit être disponible. Si la démonstration existe déjà,
-vérifier son état avec `docker --context desktop-linux ps -a --filter name=devops-demo-preview`
-avant toute nouvelle création. Un conteneur arrêté peut être démarré avec
-`docker --context desktop-linux start devops-demo-preview`.
+Se connecter avec `admin`, puis changer le mot de passe dans
+**User Info → Update Password**. Pour une installation existante, utiliser le
+mot de passe déjà choisi. Ne pas enregistrer les mots de passe dans Git.
 
-Ouvrir http://localhost:18080 puis vérifier :
+## 5. Vérifier le résultat
 
 ```powershell
-Invoke-RestMethod -Uri http://127.0.0.1:18080/healthz
-Invoke-RestMethod -Uri http://127.0.0.1:18080/version
-docker --context desktop-linux inspect devops-demo-preview --format 'User={{.Config.User}} ReadOnly={{.HostConfig.ReadonlyRootfs}} Status={{.State.Status}}'
+kubectl --context kind-devops-lab get nodes
+kubectl --context kind-devops-lab -n argocd get pods
+Invoke-RestMethod http://localhost:18080/healthz
+Invoke-RestMethod http://localhost:18080/version
+Invoke-RestMethod http://localhost:5001/v2/devops-demo/tags/list
 ```
 
-Résultats vérifiés le 16 octobre 2026 : page HTTP 200, santé `ok`, version `1`,
-route inconnue HTTP 404, utilisateur `10001:10001`, système de fichiers en lecture seule.
-La base Python du Dockerfile est figée par son empreinte SHA-256.
-Aucune dépendance pip n'est nécessaire.
+On doit retrouver :
 
-Pour arrêter la démonstration sans supprimer le conteneur :
+| Contrôle | Résultat attendu |
+| --- | --- |
+| Nœud Kubernetes | `Ready` |
+| Pods ArgoCD | `Running`, tous les conteneurs prêts |
+| Santé de l'application | `ok` |
+| Version | `1` |
+| Tags du registry | `v1` |
 
-```powershell
-docker --context desktop-linux stop devops-demo-preview
-```
+L'application visible sur le port 18080 tourne dans Docker.
+Les manifestes pour son futur déploiement Kubernetes sont dans `k8s/demo/`.
 
-### Manifestes Kubernetes préparés
+## En cas de problème
 
-`k8s/demo/` contient un Namespace, un Deployment, un Service et le fichier Kustomize.
-Le Service relie son port 80 au port 8080 de l'application.
-Les sondes de disponibilité et de vie interrogent `/healthz`.
+| Problème | Que faire |
+| --- | --- |
+| Docker ne montre pas de partie Server | Démarrer Docker Desktop et attendre que le moteur soit prêt. |
+| PowerShell bloque les scripts | Après vérification du code, exécuter `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned`, puis relancer le script. Cela ne concerne que ce terminal. |
+| Le clone renvoie Repository not found | Vérifier l'accès du compte GitHub au dépôt privé. |
+| Un port est déjà utilisé ou un conteneur est incompatible | Lire le message du script et inspecter la ressource ; ne pas la supprimer sans vérifier son contenu. |
+| ArgoCD ne s'ouvre plus | Relancer le port-forward de l'étape 4. |
+| Un pod reste bloqué | Utiliser `kubectl --context kind-devops-lab -n argocd get events --sort-by=.metadata.creationTimestamp`. |
 
-Commandes de validation exécutées avec succès :
+## Avancement par rapport aux critères de notation
 
-```powershell
-kubectl kustomize .\k8s\demo
-kubectl --context kind-devops-lab apply --dry-run=client -k .\k8s\demo
-```
+| Attendu | État |
+| --- | --- |
+| Cluster, ArgoCD et registry | Vérifiés |
+| Application Docker | Vérifiée |
+| Déploiement automatique et rollback GitOps | À réaliser |
+| Pipeline CI local | À réaliser |
+| Sauvegarde et restauration PostgreSQL chronométrée | À réaliser |
+| Supervision et trois alertes | À réaliser, après les priorités |
+| Runbook, note de recul et démonstration de 20 minutes | À compléter au fil des tests |
 
-**L'application n'est pas encore déployée dans Kubernetes.**
-L'image `devops-demo:v1` a été publiée dans le registry local sous le nom
-`localhost:5001/devops-demo:v1`. Son téléchargement depuis kind est validé
-(voir ci-dessous). L'accès Git d'ArgoCD et le déploiement GitOps restent à configurer.
-Le pipeline CI et PostgreSQL restent à réaliser.
+La commande de démarrage a été testée le 16 octobre 2026 dans Windows PowerShell
+sur le lab existant, sans suppression ni recréation du cluster.
 
-## Registry local — étape validée
+Objectif final : relancer le lab avec ce README seul en moins de 30 minutes,
+prérequis installés. Le temps d'une installation complète sur un PC neuf
+n'a pas encore été mesuré.
 
-Le registry écoute sur `127.0.0.1:5001` côté Windows. Le conteneur
-`devops-lab-registry` est également connecté au réseau Docker `kind`.
-Les images sont conservées dans le volume nommé `devops-lab-registry-data`.
-Le registry est en HTTP, sans authentification : ce choix est limité au lab local.
-
-### Configuration et publication (PowerShell)
-
-Le cluster doit déjà exister. Docker, kind et kubectl doivent être dans le PATH :
-
-```powershell
-.\scripts\Setup-Registry.ps1
-docker --context desktop-linux tag devops-demo:v1 localhost:5001/devops-demo:v1
-docker --context desktop-linux push localhost:5001/devops-demo:v1
-docker --context desktop-linux exec devops-lab-control-plane crictl pull localhost:5001/devops-demo:v1
-Invoke-RestMethod -Uri http://127.0.0.1:5001/v2/devops-demo/tags/list
-```
-
-Ces commandes ont été testées le 16 octobre 2026. Le tag `v1` est publié et le
-téléchargement depuis le nœud kind réussit. La relance du script de configuration
-réutilise le conteneur, le réseau et le volume existants.
-
-### Pourquoi une configuration spéciale pour kind ?
-
-`localhost` sur Windows et `localhost` dans le nœud Kubernetes sont deux adresses
-distinctes. Le fichier `infra/registry/hosts.toml`, copié dans
-`/etc/containerd/certs.d/localhost:5001/hosts.toml` sur chaque nœud, associe
-le nom d'image `localhost:5001/...` à `http://devops-lab-registry:5000`.
-
-Sur le nœud actuel, le chemin de configuration des registries était vide.
-Le script a sauvegardé le fichier containerd en
-`/etc/containerd/config.toml.devops-lab.bak`, ajouté `config_path`, puis redémarré
-le service containerd. Le cluster et les pods ArgoCD sont restés opérationnels.
-Le script s'arrête s'il rencontre une configuration différente qu'il ne sait pas modifier.
-
-Le ConfigMap `local-registry-hosting` dans `kube-public` documente l'adresse.
-Il ne configure pas à lui seul l'accès des nœuds au registry.
-
-Références :
-- https://kind.sigs.k8s.io/docs/user/local-registry/
-- https://github.com/containerd/containerd/blob/main/docs/hosts.md
-
-**Étape suivante :** autoriser ArgoCD à lire le dépôt privé, puis créer son
-Application GitOps. Aucun déploiement applicatif n'a été effectué pendant cette étape.
+Les détails du registry sont dans [docs/registry.md](docs/registry.md).
+Les commandes et vérifications sont ajoutées à la documentation après leur test.
