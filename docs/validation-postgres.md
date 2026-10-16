@@ -17,6 +17,6 @@ Tests réalisés le 16 octobre 2026 sur `devops-lab`, avec Windows PowerShell.
 Le mot de passe est généré pour le lab et n'est pas versionné.
 L'image officielle PostgreSQL est figée par son empreinte dans le StatefulSet.
 
-Non encore vérifiés : conservation après remplacement du pod, sauvegarde
-automatique, restauration complète et temps de restauration.
-La base est séparée de l'application web ; la page web ne l'utilise pas encore.
+Complément : le remplacement du pod, la sauvegarde automatique et la restauration
+ont depuis été vérifiés. Voir [les résultats](validation-restauration.md).
+La base reste séparée de l'application web ; la page web ne l'utilise pas encore.

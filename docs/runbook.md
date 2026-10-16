@@ -99,10 +99,53 @@ base déjà initialisée.
 
 Les données sont stockées dans le nœud kind, sur ce PC.
 La suppression du cluster ou du PVC peut les faire perdre.
-La conservation après suppression d'un pod n'a pas été testée dans cette étape.
-La procédure de sauvegarde et de restauration sera validée séparément.
+Les données ont été conservées lors du remplacement du pod pendant l'ajout du
+volume de sauvegarde. La restauration a aussi été vérifiée sur une nouvelle instance.
 
-## Sauvegarde, restauration et alertes
+## Sauvegarder PostgreSQL
 
-Ces procédures seront ajoutées après leur réalisation et leur test.
-Aucune restauration PostgreSQL ni alerte de supervision n'est validée à ce stade.
+```powershell
+.\scripts\Backup-Postgres.ps1
+```
+
+Attendu : Job réussi, archive copiée dans `backups/`, SHA-256 conforme.
+La commande utilise le modèle du CronJob et affiche le nom du dossier sauvegardé.
+
+Le CronJob tourne toutes les cinq minutes et écrit sur un volume séparé :
+
+```powershell
+kubectl --context kind-devops-lab -n data get cronjob postgres-backup
+kubectl --context kind-devops-lab -n data get jobs
+```
+
+En cas d'échec, lire les logs du Job dont le nom est affiché :
+
+```powershell
+kubectl --context kind-devops-lab -n data logs job/NOM_DU_JOB
+```
+
+## Restaurer et mesurer
+
+```powershell
+.\scripts\Test-Restore.ps1
+```
+
+Le script ajoute une ligne fictive de contrôle, fait une sauvegarde et la restaure
+sur une nouvelle instance vide. Il refuse une cible contenant déjà des tables.
+Il conserve la source, les anciennes instances de test et les archives.
+
+Attendu : `PASS`, mêmes empreintes des données et du schéma.
+Le rapport `backups/*-report.json` donne les durées de restauration et de création
+de la cible avec ses contrôles. La sauvegarde est faite avant le chronométrage.
+
+La destination ne lit ni le Service ni le volume de données de la source :
+le Job utilise seulement l'archive, le Secret du lab et la nouvelle instance.
+La source reste en fonctionnement pendant ce scénario.
+Le dump concerne la base `lab` ; les rôles globaux et ACL ne sont pas restaurés.
+
+Voir [le scénario détaillé](sauvegarde-restauration.md) et
+[les résultats vérifiés](validation-restauration.md).
+
+## Alertes
+
+La supervision et les trois alertes restent à ajouter.

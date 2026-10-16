@@ -3,8 +3,9 @@
 Ce projet reproduit une chaîne de déploiement sur un PC Windows :
 Git → image Docker → registry local → ArgoCD → Kubernetes.
 
-Le déploiement et PostgreSQL fonctionnent. La sauvegarde automatique et le test
-complet de restauration seront ajoutés à la prochaine étape. Tout reste hors production.
+Le déploiement, le rollback et la sauvegarde PostgreSQL fonctionnent.
+Une restauration complète de la base vers une instance vide a été vérifiée.
+Tout reste hors production.
 
 ## 1. Prérequis
 
@@ -160,7 +161,7 @@ Le script crée les identifiants du lab dans Kubernetes, puis ArgoCD déploie
 PostgreSQL dans le namespace `data`. La base et l'utilisateur s'appellent `lab`.
 Le mot de passe est généré automatiquement et reste hors de Git.
 
-**Résultat attendu :** `PASS`, trois lignes de démonstration et un volume `Bound`.
+**Résultat attendu :** `PASS`, au moins trois lignes de démonstration et un volume `Bound`.
 La relance conserve le mot de passe, le volume et les données déjà présents.
 
 Pour vérifier plus tard :
@@ -179,8 +180,43 @@ Les trois produits fictifs sont créés uniquement lors de l'initialisation d'un
 volume vide. Modifier `init.sql` ne modifie pas une base déjà initialisée.
 PostgreSQL est accessible à l'intérieur du cluster ; aucun port n'est ouvert sur Windows.
 
-Le stockage persistant est en place. La sauvegarde automatique et le test de
-restauration restent à ajouter. Leurs fichiers utiliseront un stockage séparé.
+Le stockage persistant et les sauvegardes utilisent deux volumes distincts.
+La sauvegarde et la restauration sont expliquées à l'étape suivante.
+
+## 9. Sauvegarder et tester une restauration
+
+La commande `Deploy-Postgres.ps1` installe aussi un CronJob de sauvegarde :
+il s'exécute toutes les cinq minutes dans le cluster.
+
+Pour faire une sauvegarde immédiatement et en garder une copie sur Windows :
+
+```powershell
+.\scripts\Backup-Postgres.ps1
+```
+
+**Résultat attendu :** `PASS`. L'archive et son SHA-256 sont copiés dans
+`backups/`, un dossier exclu de Git. Les sauvegardes planifiées restent dans le
+volume Kubernetes ; leur export sur Windows se fait avec cette commande.
+
+Pour tester la restauration :
+
+```powershell
+.\scripts\Test-Restore.ps1
+```
+
+Le script ajoute une ligne fictive, sauvegarde, puis restaure dans une **nouvelle
+instance vide**, avec son propre volume. Il compare les données et la structure,
+et affiche la durée. La base source est conservée.
+
+**Résultat attendu :** `PASS: full database restored`.
+Le rapport est enregistré dans `backups/*-report.json`.
+Les instances de test sont conservées ; chaque relance en crée une nouvelle.
+
+Test vérifié le 16 octobre 2026 : quatre lignes restaurées, structure identique,
+**11,78 s** pour créer la cible, restaurer et contrôler, dont **58 ms** de `pg_restore`.
+Une sauvegarde planifiée a aussi été vérifiée.
+Les [résultats](docs/validation-restauration.md) et
+[les détails du scénario](docs/sauvegarde-restauration.md) sont dans le dépôt.
 
 ## En cas de problème
 
@@ -200,7 +236,7 @@ restauration restent à ajouter. Leurs fichiers utiliseront un stockage séparé
 | Déploiement automatique | Vérifié |
 | CI locale et rollback GitOps | Vérifiés : version 1 → 2 → 1 |
 | PostgreSQL et son volume | Vérifiés |
-| Sauvegarde et restauration PostgreSQL | Prochaine étape |
+| Sauvegarde automatique et restauration PostgreSQL | Vérifiées |
 | Supervision et trois alertes | Après les priorités |
 | Runbook, note de recul, démo de 20 minutes | En cours |
 | Relance complète sur un PC neuf en moins de 30 minutes | À mesurer en fin de lab |
