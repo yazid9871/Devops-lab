@@ -71,6 +71,37 @@ kubectl --context kind-devops-lab -n demo logs deployment/devops-demo --tail=50
 Les tests de déploiement et de rollback portent sur l'application web sans données.
 Ils ne valident pas un rollback de schéma PostgreSQL.
 
+## Vérifier PostgreSQL
+
+```powershell
+.\scripts\Deploy-Postgres.ps1
+.\scripts\Test-Postgres.ps1
+```
+
+Le déploiement est géré par l'Application ArgoCD `postgres-lab`.
+Le test passe par le Service PostgreSQL, utilise le mot de passe du lab,
+vérifie une écriture/lecture temporaire, compte les lignes et affiche leur empreinte.
+La donnée de contrôle est temporaire ; les trois lignes fictives restent stockées.
+
+```powershell
+kubectl --context kind-devops-lab -n data get pods,pvc
+kubectl --context kind-devops-lab -n data logs postgres-0 --tail=50
+```
+
+Attendu : `postgres-0` prêt et `postgres-data-postgres-0` en `Bound`.
+Les identifiants sont dans le Secret `postgres-credentials`.
+La relance réutilise ce Secret et le volume.
+
+Si le volume existe mais que le Secret est absent, le script s'arrête :
+retrouver les identifiants existants avant de poursuivre.
+Changer la variable du mot de passe ne met pas à jour le mot de passe d'une
+base déjà initialisée.
+
+Les données sont stockées dans le nœud kind, sur ce PC.
+La suppression du cluster ou du PVC peut les faire perdre.
+La conservation après suppression d'un pod n'a pas été testée dans cette étape.
+La procédure de sauvegarde et de restauration sera validée séparément.
+
 ## Sauvegarde, restauration et alertes
 
 Ces procédures seront ajoutées après leur réalisation et leur test.

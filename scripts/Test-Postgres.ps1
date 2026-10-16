@@ -16,7 +16,11 @@ if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL write/read test failed.' }
 if ($result.Count -ne 3 -or $result[0] -ne 'write-read-ok' -or [int]$result[1] -lt 3 -or $result[2] -notmatch '^[0-9a-f]{32}$') {
     throw 'Unexpected SQL result. Inspect the database before making changes.'
 }
-Write-Host "PASS: PostgreSQL TCP authentication, write/read, $($result[1]) demo rows"
+$pvcJson = & kubectl --context kind-devops-lab -n data get pvc postgres-data-postgres-0 -o json
+if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect the PostgreSQL volume.' }
+$pvc = $pvcJson | ConvertFrom-Json
+if ($pvc.status.phase -ne 'Bound') { throw 'PostgreSQL persistent volume is not bound.' }
+Write-Host "PASS: PostgreSQL TCP authentication, write/read, $($result[1]) demo rows, volume Bound"
 Write-Host "Data fingerprint: $($result[2])"
 & kubectl --context kind-devops-lab -n data get pvc
 if ($LASTEXITCODE -ne 0) { throw 'Unable to read persistent volume status.' }

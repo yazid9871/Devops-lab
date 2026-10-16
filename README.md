@@ -3,8 +3,8 @@
 Ce projet reproduit une chaîne de déploiement sur un PC Windows :
 Git → image Docker → registry local → ArgoCD → Kubernetes.
 
-Le déploiement fonctionne. La sauvegarde et la restauration PostgreSQL seront
-ajoutées à la prochaine étape. Tout reste hors production.
+Le déploiement et PostgreSQL fonctionnent. La sauvegarde automatique et le test
+complet de restauration seront ajoutés à la prochaine étape. Tout reste hors production.
 
 ## 1. Prérequis
 
@@ -148,6 +148,40 @@ Le rollback ajoute un commit dans Git. L'ancienne image est réutilisée.
 Si le port-forward s'arrête pendant le changement de pod, relancer celui de l'étape 5.
 En cas d'erreur du pipeline, ne pas poursuivre ; examiner `git status` et `git diff`.
 
+## 8. Déployer PostgreSQL
+
+Depuis le dossier du projet :
+
+```powershell
+.\scripts\Deploy-Postgres.ps1
+```
+
+Le script crée les identifiants du lab dans Kubernetes, puis ArgoCD déploie
+PostgreSQL dans le namespace `data`. La base et l'utilisateur s'appellent `lab`.
+Le mot de passe est généré automatiquement et reste hors de Git.
+
+**Résultat attendu :** `PASS`, trois lignes de démonstration et un volume `Bound`.
+La relance conserve le mot de passe, le volume et les données déjà présents.
+
+Pour vérifier plus tard :
+
+```powershell
+.\scripts\Test-Postgres.ps1
+```
+
+Pour afficher les données fictives :
+
+```powershell
+kubectl --context kind-devops-lab -n data exec postgres-0 -- psql -h postgres.data.svc.cluster.local -U lab -d lab -c "TABLE demo_items;"
+```
+
+Les trois produits fictifs sont créés uniquement lors de l'initialisation d'un
+volume vide. Modifier `init.sql` ne modifie pas une base déjà initialisée.
+PostgreSQL est accessible à l'intérieur du cluster ; aucun port n'est ouvert sur Windows.
+
+Le stockage persistant est en place. La sauvegarde automatique et le test de
+restauration restent à ajouter. Leurs fichiers utiliseront un stockage séparé.
+
 ## En cas de problème
 
 | Problème | Vérification |
@@ -165,6 +199,7 @@ En cas d'erreur du pipeline, ne pas poursuivre ; examiner `git status` et `git d
 | --- | --- |
 | Déploiement automatique | Vérifié |
 | CI locale et rollback GitOps | Vérifiés : version 1 → 2 → 1 |
+| PostgreSQL et son volume | Vérifiés |
 | Sauvegarde et restauration PostgreSQL | Prochaine étape |
 | Supervision et trois alertes | Après les priorités |
 | Runbook, note de recul, démo de 20 minutes | En cours |
