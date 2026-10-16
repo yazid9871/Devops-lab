@@ -78,7 +78,7 @@ try {
     }
     if (-not $healthy) { throw 'Demo health check failed.' }
     Write-Host 'Ready: http://localhost:18080'
-    Write-Host 'The demo runs in Docker. ArgoCD Git access and app sync are the next step.'
+    Write-Host 'This preview runs in Docker. For the Kubernetes deployment, follow README step 5.'
 } finally {
     $env:DOCKER_CONTEXT = $previousDockerContext
 }

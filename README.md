@@ -3,8 +3,8 @@
 Ce lab sert à tester une chaîne de déploiement sur un PC, avant de réfléchir
 à son utilisation dans l'infrastructure de l'équipe.
 
-**Le projet est en cours.** Aujourd'hui, le cluster, ArgoCD, le registry et
-l'application Docker fonctionnent. ArgoCD ne déploie pas encore l'application.
+**Le projet est en cours.** Le cluster, le registry et ArgoCD fonctionnent.
+ArgoCD lit le dépôt privé et déploie automatiquement l'application dans Kubernetes.
 La CI, le rollback et la sauvegarde PostgreSQL restent à réaliser.
 
 ## 1. Avant de commencer
@@ -143,9 +143,10 @@ Invoke-RestMethod http://localhost:8081/healthz
 kubectl --context kind-devops-lab -n argocd get application devops-demo
 ```
 
-**Validation en cours :** la création de la clé, son enregistrement dans ArgoCD
-et le manifeste Application ont été vérifiés. Le déploiement de bout en bout
-reste à tester après l'ajout de la clé publique dans GitHub.
+**Vérifié le 16 octobre 2026 :** ArgoCD a lu le dépôt privé et lancé la
+synchronisation automatiquement. L'Application affiche `Synced / Healthy`,
+le pod est prêt et la page répond sur le port 8081. Les routes `/healthz`
+et `/version` renvoient respectivement `ok` et `1`.
 
 Sur un autre PC, générer une nouvelle clé avec le script et l'ajouter au dépôt.
 Ne jamais copier la clé privée dans le README, un message ou un commit.
@@ -190,7 +191,8 @@ Les manifestes pour son futur déploiement Kubernetes sont dans `k8s/demo/`.
 | --- | --- |
 | Cluster, ArgoCD et registry | Vérifiés |
 | Application Docker | Vérifiée |
-| Déploiement automatique et rollback GitOps | À réaliser |
+| Premier déploiement automatique ArgoCD | Vérifié |
+| Mise à jour applicative automatique et rollback GitOps | À réaliser |
 | Pipeline CI local | À réaliser |
 | Sauvegarde et restauration PostgreSQL chronométrée | À réaliser |
 | Supervision et trois alertes | À réaliser, après les priorités |
