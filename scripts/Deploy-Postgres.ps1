@@ -32,6 +32,9 @@ if (-not $credential) {
     if ($LASTEXITCODE -ne 0) { throw 'Unable to create the local PostgreSQL credential.' }
 }
 Invoke-PgKubectl apply -f (Join-Path $projectRoot 'infra/argocd/postgres-application.yaml')
+$revision = & git -C $projectRoot rev-parse HEAD
+if ($LASTEXITCODE -ne 0) { throw 'Unable to read the Git revision.' }
+Invoke-PgKubectl -n argocd wait "--for=jsonpath={.status.sync.revision}=$revision" application/postgres-lab --timeout=300s
 Invoke-PgKubectl -n argocd wait '--for=jsonpath={.status.sync.status}=Synced' application/postgres-lab --timeout=300s
 Invoke-PgKubectl -n argocd wait '--for=jsonpath={.status.health.status}=Healthy' application/postgres-lab --timeout=300s
 Invoke-PgKubectl -n data rollout status statefulset/postgres --timeout=180s

@@ -89,10 +89,16 @@ spec:
               mountPath: /var/run/postgresql
             - name: tmp
               mountPath: /tmp
+            - name: backups
+              mountPath: /backups
+              readOnly: true
             - name: init
               mountPath: /docker-entrypoint-initdb.d
               readOnly: true
       volumes:
+        - name: backups
+          persistentVolumeClaim:
+            claimName: postgres-backups
         - name: runtime
           emptyDir:
             sizeLimit: 16Mi

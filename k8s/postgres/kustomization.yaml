@@ -5,7 +5,15 @@ resources:
   - namespace.yaml
   - service.yaml
   - statefulset.yaml
+  - backup-pvc.yaml
+  - backup-cronjob.yaml
 configMapGenerator:
   - name: postgres-init
     files:
       - 01-demo.sql=init.sql
+
+  - name: postgres-backup-scripts
+    files:
+      - backup.sh
+      - restore.sh
+      - verify.sql

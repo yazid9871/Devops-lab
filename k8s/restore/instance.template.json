@@ -1,0 +1,197 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "PersistentVolumeClaim",
+      "metadata": {
+        "name": "__RESTORE_NAME__-data",
+        "namespace": "data",
+        "labels": {
+          "lab-role": "restore"
+        }
+      },
+      "spec": {
+        "accessModes": [
+          "ReadWriteOnce"
+        ],
+        "storageClassName": "standard",
+        "resources": {
+          "requests": {
+            "storage": "1Gi"
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "__RESTORE_NAME__",
+        "namespace": "data"
+      },
+      "spec": {
+        "clusterIP": "None",
+        "selector": {
+          "app": "__RESTORE_NAME__"
+        },
+        "ports": [
+          {
+            "name": "postgres",
+            "port": 5432,
+            "targetPort": "postgres"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "StatefulSet",
+      "metadata": {
+        "name": "__RESTORE_NAME__",
+        "namespace": "data",
+        "labels": {
+          "lab-role": "restore"
+        }
+      },
+      "spec": {
+        "serviceName": "__RESTORE_NAME__",
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "__RESTORE_NAME__"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "__RESTORE_NAME__"
+            }
+          },
+          "spec": {
+            "automountServiceAccountToken": false,
+            "securityContext": {
+              "runAsNonRoot": true,
+              "runAsUser": 999,
+              "runAsGroup": 999,
+              "fsGroup": 999,
+              "seccompProfile": {
+                "type": "RuntimeDefault"
+              }
+            },
+            "containers": [
+              {
+                "name": "postgres",
+                "image": "postgres:17-bookworm@sha256:3645570cccdfa447589da9f57dd740faa29b30938e861289a5574b6ca6b03826",
+                "env": [
+                  {
+                    "name": "POSTGRES_USER",
+                    "value": "lab"
+                  },
+                  {
+                    "name": "POSTGRES_DB",
+                    "value": "lab"
+                  },
+                  {
+                    "name": "POSTGRES_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "postgres-credentials",
+                        "key": "password"
+                      }
+                    }
+                  },
+                  {
+                    "name": "PGPASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "postgres-credentials",
+                        "key": "password"
+                      }
+                    }
+                  },
+                  {
+                    "name": "PGDATA",
+                    "value": "/var/lib/postgresql/data/pgdata"
+                  }
+                ],
+                "ports": [
+                  {
+                    "name": "postgres",
+                    "containerPort": 5432
+                  }
+                ],
+                "readinessProbe": {
+                  "exec": {
+                    "command": [
+                      "pg_isready",
+                      "-U",
+                      "lab",
+                      "-d",
+                      "lab"
+                    ]
+                  },
+                  "periodSeconds": 2
+                },
+                "resources": {
+                  "requests": {
+                    "cpu": "100m",
+                    "memory": "128Mi"
+                  },
+                  "limits": {
+                    "cpu": "500m",
+                    "memory": "512Mi"
+                  }
+                },
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "readOnlyRootFilesystem": true,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/postgresql/data"
+                  },
+                  {
+                    "name": "runtime",
+                    "mountPath": "/var/run/postgresql"
+                  },
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "data",
+                "persistentVolumeClaim": {
+                  "claimName": "__RESTORE_NAME__-data"
+                }
+              },
+              {
+                "name": "runtime",
+                "emptyDir": {
+                  "sizeLimit": "16Mi"
+                }
+              },
+              {
+                "name": "tmp",
+                "emptyDir": {
+                  "sizeLimit": "64Mi"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}
