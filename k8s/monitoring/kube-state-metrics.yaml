@@ -135,7 +135,6 @@ items:
                 initialDelaySeconds: 30
                 periodSeconds: 15
               args:
-                - "--namespaces=demo,data,monitoring"
                 - "--resources=pods,jobs,cronjobs,deployments,statefulsets,persistentvolumeclaims"
           volumes:
             -

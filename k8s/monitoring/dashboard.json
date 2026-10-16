@@ -2,7 +2,7 @@
   "uid": "devops-lab",
   "title": "DevOps Lab",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "timezone": "browser",
   "refresh": "15s",
   "time": {
@@ -10,6 +10,123 @@
     "to": "now"
   },
   "panels": [
+    {
+      "id": 7,
+      "title": "Pods presents (tous etats)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      },
+      "targets": [
+        {
+          "expr": "count(kube_pod_info{namespace=~\"${namespace:regex}\"}) or vector(0)",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Pods actifs (Running ou Pending)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      },
+      "targets": [
+        {
+          "expr": "count(kube_pod_status_phase{namespace=~\"${namespace:regex}\",phase=~\"Running|Pending\"} == 1) or vector(0)",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "Pods termines (Succeeded ou Failed)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      },
+      "targets": [
+        {
+          "expr": "count(kube_pod_status_phase{namespace=~\"${namespace:regex}\",phase=~\"Succeeded|Failed\"} == 1) or vector(0)",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
     {
       "id": 1,
       "title": "PostgreSQL disponible (1 = oui)",
@@ -20,7 +137,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 0,
+        "y": 4,
         "w": 8,
         "h": 7
       },
@@ -71,7 +188,7 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 0,
+        "y": 4,
         "w": 8,
         "h": 7
       },
@@ -122,7 +239,7 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 0,
+        "y": 4,
         "w": 8,
         "h": 7
       },
@@ -173,7 +290,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 7,
+        "y": 11,
         "w": 8,
         "h": 7
       },
@@ -224,7 +341,7 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 7,
+        "y": 11,
         "w": 8,
         "h": 7
       },
@@ -275,7 +392,7 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 7,
+        "y": 11,
         "w": 8,
         "h": 7
       },
@@ -315,10 +432,124 @@
           "values": false
         }
       }
+    },
+    {
+      "id": 10,
+      "title": "Liste des pods",
+      "description": "Une ligne par pod actuellement present dans Kubernetes. Le filtre Etat ne concerne que ce tableau. Conteneurs prets : conteneurs applicatifs, hors init containers. Les compteurs suivent le namespace selectionne.",
+      "type": "table",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 24,
+        "h": 12
+      },
+      "targets": [
+        {
+          "expr": "label_join(((((max by (namespace,pod,phase) (kube_pod_status_phase{namespace=~\"${namespace:regex}\",phase=~\"${phase:regex}\"} == 1)) * on (namespace,pod) group_left(ready) count_values by (namespace,pod) (\"ready\", (sum by (namespace,pod) (kube_pod_container_status_ready{namespace=~\"${namespace:regex}\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\"${namespace:regex}\"})))) * on (namespace,pod) group_left(containers) count_values by (namespace,pod) (\"containers\", (count by (namespace,pod) (kube_pod_container_info{namespace=~\"${namespace:regex}\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\"${namespace:regex}\"})))) * on (namespace,pod) group_left(restarts) count_values by (namespace,pod) (\"restarts\", (sum by (namespace,pod) (kube_pod_container_status_restarts_total{namespace=~\"${namespace:regex}\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\"${namespace:regex}\"})))), \"readiness\", \"/\", \"ready\", \"containers\")",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [
+          {
+            "displayName": "Namespace",
+            "desc": false
+          }
+        ],
+        "footer": {
+          "show": false
+        }
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "ready": true,
+              "containers": true,
+              "__name__": true
+            },
+            "indexByName": {
+              "namespace": 0,
+              "pod": 1,
+              "phase": 2,
+              "readiness": 3,
+              "restarts": 4
+            },
+            "renameByName": {
+              "namespace": "Namespace",
+              "pod": "Nom du pod",
+              "phase": "Etat",
+              "readiness": "Conteneurs prets",
+              "restarts": "Redemarrages"
+            }
+          }
+        }
+      ]
     }
   ],
   "tags": [
     "devops",
     "local"
-  ]
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "label": "Namespace",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": {
+          "query": "label_values(kube_pod_info, namespace)",
+          "refId": "namespace"
+        },
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "sort": 1
+      },
+      {
+        "name": "phase",
+        "label": "Etat des pods",
+        "type": "custom",
+        "query": "Running,Pending,Succeeded,Failed,Unknown",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "options": []
+      }
+    ]
+  }
 }

@@ -65,6 +65,15 @@ Le tableau montre la disponibilité de PostgreSQL, les pods en erreur, les Jobs 
 sauvegarde échoués, l'âge de la dernière sauvegarde, les alertes actives et les pods
 actifs par namespace. Il ne mesure pas le CPU ou la mémoire des conteneurs.
 
+Trois compteurs indiquent les pods présents, les pods actifs (`Running` ou
+`Pending`) et les pods terminés (`Succeeded` ou `Failed`). Ils suivent le filtre
+**Namespace**. Le tableau **Liste des pods** affiche une ligne par pod : namespace,
+nom, état Kubernetes, conteneurs prêts et redémarrages des conteneurs applicatifs.
+Les conteneurs d'initialisation ne sont pas inclus dans ces deux derniers champs.
+Le filtre **Etat des pods** s'applique seulement au tableau. Les mesures sont
+rafraîchies toutes les 15 secondes ; un changement peut mettre quelques secondes
+à apparaître. Un pod supprimé disparaît du tableau après la collecte suivante.
+
 Pour les règles Prometheus, ouvrir un autre terminal :
 
 ```powershell
@@ -126,8 +135,8 @@ de considérer le problème terminé ; une alerte masquée n'est pas une répara
 - ArgoCD conserve les anciennes ConfigMaps lors des mises à jour. Elles sont
   ignorées dans le calcul de synchronisation ; les pods utilisent la configuration
   référencée dans Git. Aucun nettoyage automatique des données n'est activé.
-- La collecte des objets couvre `demo`, `data` et `monitoring`. Les alertes pods
-  ciblent `demo` et `data`. Les composants internes du cluster ne sont pas couverts.
+- La collecte des objets et le tableau des pods couvrent tous les namespaces,
+  y compris `argocd` et `kube-system`. Les alertes pods ciblent `demo` et `data`.
 - Il n'y a pas d'alerte indépendante si le PC, Prometheus ou tout le cluster tombe.
 - L'exporteur réutilise le compte fictif du lab. En production, prévoir un compte
   de supervision avec des droits limités, des accès protégés et un stockage externe.

@@ -38,6 +38,32 @@ if ($alerts.Count -ne 3 -or @($alerts | Where-Object { $_.health -ne 'ok' }).Cou
 $grafana = Invoke-MonitorKubectl get --raw /api/v1/namespaces/monitoring/services/http:grafana:web/proxy/api/health | ConvertFrom-Json
 if ($grafana.database -ne 'ok') { throw 'Grafana database is not healthy.' }
 $am = Invoke-MonitorKubectl get --raw /api/v1/namespaces/monitoring/services/http:alertmanager:web/proxy/-/ready
+$projectRoot = Split-Path -Parent $PSScriptRoot
+$dashboard = Get-Content (Join-Path $projectRoot 'k8s/monitoring/dashboard.json') -Raw | ConvertFrom-Json
+$podQuery = ($dashboard.panels | Where-Object { $_.id -eq 10 }).targets[0].expr
+if (-not $podQuery) { throw 'Pod table query is missing from the dashboard.' }
+$deadline = (Get-Date).AddSeconds(90)
+do {
+    $query = $podQuery.Replace('${namespace:regex}', '.*').Replace('${phase:regex}', '.*')
+    $table = Get-Prometheus ('api/v1/query?query=' + [uri]::EscapeDataString($query))
+    $pods = (Invoke-MonitorKubectl get pods -A -o json | ConvertFrom-Json).items
+    $expected = @($pods | ForEach-Object { "$($_.metadata.namespace)/$($_.metadata.name)" } | Sort-Object)
+    $actual = @($table.result | ForEach-Object { "$($_.metric.namespace)/$($_.metric.pod)" } | Sort-Object)
+    if (($actual -join ',') -eq ($expected -join ',')) { break }
+    if ((Get-Date) -gt $deadline) { throw 'Pod table does not match Kubernetes after waiting for collection.' }
+    Start-Sleep -Seconds 5
+} while ($true)
+foreach ($row in $table.result) {
+    if ($row.metric.readiness -notmatch '^\d+/\d+$' -or $row.metric.restarts -notmatch '^\d+$') {
+        throw 'Pod readiness or restart count is missing.'
+    }
+}
+$filteredQuery = $podQuery.Replace('${namespace:regex}', 'data').Replace('${phase:regex}', 'Running')
+$filtered = Get-Prometheus ('api/v1/query?query=' + [uri]::EscapeDataString($filteredQuery))
+if (@($filtered.result).Count -eq 0 -or @($filtered.result | Where-Object { $_.metric.namespace -ne 'data' -or $_.metric.phase -ne 'Running' }).Count -gt 0) {
+    throw 'Pod namespace/state filter failed.'
+}
+Write-Host "PASS: pod table matches all $($actual.Count) Kubernetes pods; names, readiness, restarts and data/Running filter checked."
 Write-Host 'PASS: 3 scrape targets UP, pg_up=1, scheduled backup visible, 3 healthy rules, Grafana and Alertmanager ready.'
 Write-Host 'PASS: alert failure scenarios tested with simulated metrics (no live outage injected).'
 $alerts | Select-Object name, state, health | Format-Table

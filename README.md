@@ -246,6 +246,9 @@ $encoded = kubectl --context kind-devops-lab -n monitoring get secret lab-grafan
 ```
 
 Le dashboard **DevOps Lab** montre la base, les pods et les sauvegardes.
+Il affiche aussi le nombre total de pods, les pods actifs et les pods termines,
+avec un tableau : nom, namespace, etat, conteneurs prets et redemarrages.
+Utiliser les filtres **Namespace** et **Etat des pods** pour retrouver un pod.
 Trois alertes surveillent : pod en erreur, PostgreSQL inaccessible et sauvegarde
 échouée ou sans succès depuis quinze minutes. Les alertes sont visibles dans
 Prometheus et Alertmanager ; aucun message externe n'est envoyé.
