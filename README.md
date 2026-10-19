@@ -109,6 +109,7 @@ Il faut avoir les droits d’écriture sur le dépôt. Depuis le dossier du proj
 dans un autre terminal :
 
 ```powershell
+git status --short
 .\scripts\Publish-Demo.ps1
 ```
 
@@ -121,6 +122,23 @@ $deployCommit = git rev-parse HEAD
 .\scripts\Test-Deployment.ps1
 kubectl --context kind-devops-lab -n argocd get applications
 ```
+
+Rôle de chaque commande :
+
+- `git status --short` affiche les fichiers modifiés. Aucun résultat signifie
+  que le dossier est propre. Si des fichiers apparaissent, enregistrer ou annuler
+  les changements avant de lancer le pipeline.
+- `.\scripts\Publish-Demo.ps1` choisit une nouvelle version, construit et teste
+  l’image Docker, la publie dans le registry local, puis crée et pousse sur GitHub
+  un commit avec la nouvelle version.
+- `$deployCommit = git rev-parse HEAD` conserve l’identifiant du dernier commit
+  dans une variable. Après une publication réussie, c’est le commit à annuler
+  pour revenir en arrière. La variable reste disponible dans ce terminal uniquement.
+- `.\scripts\Test-Deployment.ps1` attend le bon commit dans ArgoCD, vérifie
+  **Synced / Healthy**, l’image déployée et la réponse HTTPS avec la bonne version.
+  Il affiche **PASS** si tout fonctionne. C’est ArgoCD qui déploie ; ce script vérifie.
+- `kubectl --context kind-devops-lab -n argocd get applications` affiche l’état
+  des applications gérées par ArgoCD.
 
 ArgoCD synchronise automatiquement, sans commande de synchronisation manuelle.
 Attendu : **PASS**, puis **Synced / Healthy** pour `devops-demo`. Actualiser
