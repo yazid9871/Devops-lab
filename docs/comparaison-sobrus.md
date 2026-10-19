@@ -78,8 +78,8 @@ cela ne signifie pas qu'un nouveau test en fonctionnement vient de réussir.
 | pfSense/OpenVPN, routes vers les ressources (p. 27) | Aucun lab VPN | Extension réseau séparée si nécessaire ; accès local par loopback pour le socle. Ne pas présenter celui-ci comme une validation du VPN Sobrus. |
 
 Redis est un exercice complémentaire du lab : il n'est pas décrit comme composant
-dans le texte du PDF examiné. L'application Python actuelle ne se connecte ni à
-PostgreSQL ni à Redis ; les tests de ces services sont indépendants.
+dans le texte du PDF examiné. L'application Python conserve maintenant ses tâches dans PostgreSQL. Redis
+reste indépendant ; son intégration applicative n'est pas encore réalisée.
 
 ## Extensions possibles pour se rapprocher de Sobrus
 

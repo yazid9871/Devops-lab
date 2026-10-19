@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1120" viewBox="0 0 1600 1120">
 <title>Architecture du lab DevOps local</title>
-<desc>Un PC Windows avec Docker Desktop, un cluster kind, ArgoCD, une application Python, PostgreSQL, Redis, des sauvegardes et la supervision. Helm, Traefik et cert-manager sont deployes. Sauvegarde PostgreSQL toutes les cinq minutes avec attente de disponibilite. Grafana affiche tous les pods.</desc>
+<desc>Un PC Windows avec Docker Desktop, un cluster kind, ArgoCD, une application Python, PostgreSQL, Redis, des sauvegardes et la supervision. Helm, Traefik et cert-manager sont deployes. Sauvegarde PostgreSQL toutes les cinq minutes avec attente de disponibilite. Grafana affiche tous les pods. Application connectee a PostgreSQL pour les taches, Redis independant.</desc>
 <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L8,4 L0,8 Z" fill="#475569"/></marker></defs>
 <rect width="1600" height="1120" fill="white"/>
 <text x="80" y="59" font-family="Segoe UI, Arial, sans-serif" font-size="35" fill="#17202c" font-weight="600" text-anchor="start">Architecture du lab DevOps local</text>
@@ -144,7 +144,9 @@
 <text x="655" y="836" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#475569" font-weight="400" text-anchor="middle">pg_dump</text>
 <path d="M430,915 V944 H1405 V930" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
 <text x="845" y="984" font-family="Segoe UI, Arial, sans-serif" font-size="17" fill="#475569" font-weight="400" text-anchor="middle">métriques via exporteurs</text>
+<path d="M670,680 V750 H340 V785" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="505" y="771" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#475569" font-weight="400" text-anchor="middle">SQL · tâches / TCP 5432</text>
 <circle cx="88" cy="1050" r="6" fill="#20945b" stroke="none" stroke-width="1.5"/>
 <text x="105" y="1057" font-family="Segoe UI, Arial, sans-serif" font-size="19" fill="#236344" font-weight="400" text-anchor="start">Déployés et vérifiés : Helm, Traefik, cert-manager, sauvegardes et supervision.</text>
-<text x="80" y="1090" font-family="Segoe UI, Arial, sans-serif" font-size="18" fill="#64748b" font-weight="400" text-anchor="start">L’application web n’utilise pas encore les bases. Les sauvegardes PostgreSQL restent sur le même PC.</text>
+<text x="80" y="1090" font-family="Segoe UI, Arial, sans-serif" font-size="18" fill="#64748b" font-weight="400" text-anchor="start">Application connectée à PostgreSQL · Redis indépendant · Sauvegardes sur le même PC.</text>
 </svg>

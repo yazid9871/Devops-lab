@@ -2,9 +2,9 @@
 
 ## Etat de cette evolution
 
-Le chart et les scripts ont ete prepares le 19 octobre 2026. Cette evolution
-n'a pas ete deployee ni testee sur le cluster. Les validations du 16 octobre
-concernent l'ancienne configuration Kustomize.
+Le chart est deploye via ArgoCD. La version 0.3.0 ajoute la connexion PostgreSQL
+et une readiness qui verifie la base. Les validations du 16 octobre concernent
+l'ancienne configuration Kustomize. Voir application-postgresql.md.
 
 ## Role de chaque fichier
 
@@ -17,7 +17,7 @@ concernent l'ancienne configuration Kustomize.
 | `infra/argocd/demo-application.yaml` | Source Git, chemin du chart, release `devops-demo`, destination `demo` |
 | `app/VERSION` | Version retournee par l'application dans l'image construite |
 
-La version du chart (`0.2.0`) decrit ses templates. Le tag d'image (`v1`, `v2`...)
+La version du chart (`0.3.0`) decrit ses templates. Le tag d'image (`v1`, `v2`...)
 decrit une publication de l'application. Le script de publication modifie le tag
 dans `values.yaml` et la version dans `app/VERSION` ensemble.
 

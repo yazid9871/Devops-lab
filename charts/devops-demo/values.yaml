@@ -2,7 +2,7 @@
 replicaCount: 1
 image:
   repository: localhost:5001/devops-demo
-  tag: "v1"
+  tag: "v3"
   pullPolicy: IfNotPresent
 service:
   port: 80

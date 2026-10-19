@@ -8,7 +8,7 @@ Avant de créer une archive, il vérifie la disponibilité de PostgreSQL avec
 timeout de connexion de deux secondes. Cela absorbe un retard de DNS ou de
 démarrage. Une indisponibilité persistante fait échouer le Job et reste alertée.
 Il utilise `pg_dump -Fc` pour sauvegarder toute la base `lab` dans une archive :
-schéma, données et objets de cette base. Un fichier SHA-256 accompagne chaque archive.
+schéma, données et objets de cette base, dont les tâches `app_tasks`. Un fichier SHA-256 accompagne chaque archive.
 
 Le volume `postgres-backups` (2 Gio) est séparé de `postgres-data-postgres-0` (1 Gio).
 Un dossier n'est considéré complet qu'après la réussite du dump et son contrôle.

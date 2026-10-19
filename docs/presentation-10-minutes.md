@@ -36,12 +36,13 @@ Cluster kind local
   argocd      : suivi de la configuration Git
 ```
 
-Évolution préparée dans les fichiers, encore à déployer et tester : chart Helm
-applicatif, Traefik pour l'Ingress HTTPS et cert-manager pour l'autorité locale
-et le certificat `localhost`. Voir le [guide HTTPS](https-local.md).
+Composants déployés : chart Helm applicatif, Traefik pour l'Ingress HTTPS et
+cert-manager pour l'autorité locale et le certificat `localhost`. Le renouvellement
+réel des certificats reste à observer. Voir le [guide HTTPS](https-local.md).
 
-L'application web n'utilise pas encore Redis. PostgreSQL et Redis ont leurs
-propres tests ; ne pas présenter de connexion applicative qui n'a pas été démontrée.
+L'application utilise PostgreSQL : montrer l'ajout d'une tâche puis son état
+après actualisation. Redis est installé et testé séparément, sans intégration
+applicative. Voir [le guide applicatif](application-postgresql.md).
 
 ## Préparer avant de démarrer le chronomètre
 

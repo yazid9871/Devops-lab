@@ -6,6 +6,7 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'Lab-Repository.ps1')
 . (Join-Path $PSScriptRoot 'Lab-DemoChart.ps1')
 $chart = Get-LabDemoChart -ProjectRoot $projectRoot
+& (Join-Path $PSScriptRoot 'Connect-AppDatabase.ps1') | Out-Host
 if ($chart.IngressEnabled) {
     & kubectl --context kind-devops-lab wait --for=condition=Ready clusterissuer/devops-lab-ca --timeout=120s
     if ($LASTEXITCODE -ne 0) { throw 'The local CA is not ready. Run scripts/Deploy-Access.ps1 first.' }

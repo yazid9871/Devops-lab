@@ -25,6 +25,12 @@ try:
         assert json.load(response)["version"] == expected, "Unexpected application version"
     with urllib.request.urlopen("http://127.0.0.1:8080/", timeout=3) as response:
         assert f"version {expected}" in response.read().decode("utf-8"), "Unexpected page"
+    # The process remains live without PostgreSQL, but must not report ready.
+    try:
+        urllib.request.urlopen("http://127.0.0.1:8080/readyz", timeout=5)
+        raise AssertionError("Missing database must return 503")
+    except urllib.error.HTTPError as error:
+        assert error.code == 503
     try:
         urllib.request.urlopen("http://127.0.0.1:8080/missing", timeout=3)
         raise AssertionError("Unknown route must return 404")

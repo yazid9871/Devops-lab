@@ -33,4 +33,6 @@ if ($version.version -ne $expected) { throw "Expected version $expected, got $($
 $raw = & kubectl --context kind-devops-lab get --raw '/api/v1/namespaces/demo/services/http:devops-demo:http/proxy/healthz'
 if ($LASTEXITCODE -ne 0) { throw 'Health endpoint failed.' }
 if (($raw | ConvertFrom-Json).status -ne 'ok') { throw 'Application is not healthy.' }
-Write-Host "PASS: Git revision $target, Synced / Healthy, HTTP version $expected, health ok"
+$raw = & kubectl --context kind-devops-lab get --raw '/api/v1/namespaces/demo/services/http:devops-demo:http/proxy/readyz'
+if ($LASTEXITCODE -ne 0 -or ($raw | ConvertFrom-Json).database -ne 'connected') { throw 'Application cannot read its PostgreSQL table.' }
+Write-Host "PASS: Git revision $target, Synced / Healthy, HTTP version $expected, health and PostgreSQL readiness ok"
