@@ -14,10 +14,10 @@ foreach ($url in @('https://github.com/colleague/custom-lab.git','https://github
     & git -C $fixture remote set-url origin $url
     if ($LASTEXITCODE -ne 0) { throw 'Cannot configure the fixture URL.' }
     $repository = Get-LabRepository -ProjectRoot $fixture
-    if ($repository.SshUrl -ne 'ssh://git@ssh.github.com:443/colleague/custom-lab.git' -or $repository.KeysUrl -ne 'https://github.com/colleague/custom-lab/settings/keys') { throw 'GitHub origin normalization failed.' }
+    if ($repository.HttpsUrl -ne 'https://github.com/colleague/custom-lab.git' -or $repository.WebUrl -ne 'https://github.com/colleague/custom-lab') { throw 'GitHub origin normalization failed.' }
     foreach ($file in Get-ChildItem (Join-Path $projectRoot 'infra/argocd') -Filter '*application.yaml') {
-        $text = Get-LabApplicationText -ManifestPath $file.FullName -RepositoryUrl $repository.SshUrl
-        if (-not $text.Contains('repoURL: ' + $repository.SshUrl) -or $text.Contains('/OWNER/')) { throw 'Application portability failed.' }
+        $text = Get-LabApplicationText -ManifestPath $file.FullName -RepositoryUrl $repository.HttpsUrl
+        if (-not $text.Contains('repoURL: ' + $repository.HttpsUrl) -or $text.Contains('/OWNER/') -or $text.Contains('repoURL: ssh://')) { throw 'Application HTTPS portability failed.' }
     }
 }
 foreach ($url in @('https://example.org/colleague/custom-lab.git','https://github.com/TON-COMPTE/Devops-lab.git')) {

@@ -1,4 +1,4 @@
-# Run after adding the generated public deploy key to GitHub.
+# Deploy from the public GitHub repository over HTTPS.
 [CmdletBinding()]
 param()
 $ErrorActionPreference = 'Stop'
@@ -20,7 +20,7 @@ do {
 } while ((Get-Date) -lt $deadline)
 if (-not $ready) {
     $app.status.conditions | Format-Table type, message -Wrap
-    throw 'ArgoCD is not Synced and Healthy yet. Check the public deploy key and Application conditions.'
+    throw 'ArgoCD is not Synced and Healthy yet. Check public HTTPS repository access and Application conditions.'
 }
 & kubectl --context kind-devops-lab -n demo rollout status deployment/devops-demo --timeout=120s
 if ($LASTEXITCODE -ne 0) { throw 'The application deployment is not ready.' }

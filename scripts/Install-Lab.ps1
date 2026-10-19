@@ -1,6 +1,6 @@
-# One entry point for a new Windows PC with Docker/Git/kind/kubectl/OpenSSH ready.
+# One entry point for a new Windows PC with Docker/Git/kind/kubectl ready.
 [CmdletBinding()]
-param([switch]$RepoKeyAlreadyAdded)
+param()
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'Lab-Repository.ps1')
@@ -15,10 +15,11 @@ function Invoke-InstallStep {
 }
 Push-Location $projectRoot
 try {
-    foreach ($tool in @('git','docker','kind','kubectl','ssh-keygen')) {
+    foreach ($tool in @('git','docker','kind','kubectl')) {
         if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { throw "$tool is missing. Install the prerequisites in the README, then reopen PowerShell." }
     }
     $repository = Get-LabRepository -ProjectRoot $projectRoot
+    Invoke-InstallStep 'Public GitHub repository (HTTPS)' 'Connect-ArgoRepo.ps1'
     $clusters = @(& kind get clusters)
     if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect kind clusters.' }
     $clusterAlreadyExisted = $clusters -contains 'devops-lab'
@@ -26,20 +27,14 @@ try {
     if ($LASTEXITCODE -ne 0 -or $branch -ne 'main') { throw 'Use the main branch of your copy of the repository.' }
     $pending = & git status --porcelain
     if ($LASTEXITCODE -ne 0 -or $pending) { throw 'Commit and push your changes before installing.' }
-    & git fetch origin main
-    if ($LASTEXITCODE -ne 0) { throw 'GitHub access failed. Sign in with an account allowed to read your repository.' }
+    # Existing SSH checkouts can also install without an SSH client.
+    & git fetch $repository.HttpsUrl '+refs/heads/main:refs/remotes/origin/main'
+    if ($LASTEXITCODE -ne 0) { throw 'GitHub HTTPS access failed. Check the public repository and network connection.' }
     $head = & git rev-parse HEAD
     $remote = & git rev-parse origin/main
     if ($LASTEXITCODE -ne 0 -or $head -ne $remote) { throw 'Local main must match origin/main. Synchronize the repository before installing.' }
     Write-Host "Repository: $($repository.WebUrl)"
     Invoke-InstallStep 'Cluster, registry and ArgoCD' 'Start-Lab.ps1'
-    Invoke-InstallStep 'GitHub deploy key' 'Connect-ArgoRepo.ps1'
-    if (-not $RepoKeyAlreadyAdded) {
-        Write-Host "`nAdd the displayed PUBLIC key here: $($repository.KeysUrl)"
-        Write-Host 'Leave Allow write access unchecked. Keep the private key in secrets/.'
-        $answer = Read-Host 'Type OK after clicking Add key on GitHub'
-        if ($answer -ne 'OK') { throw 'Installation stopped before deployment. Rerun once the public key is added.' }
-    }
     Invoke-InstallStep 'Web application' 'Deploy-Demo.ps1'
     Invoke-InstallStep 'HTTP check' 'Test-Deployment.ps1'
     Invoke-InstallStep 'PostgreSQL and scheduled backup' 'Deploy-Postgres.ps1'
@@ -52,7 +47,8 @@ try {
         Repository=$repository.WebUrl
         TotalMinutes=[math]::Round($timer.Elapsed.TotalMinutes,2)
         IncludesPrerequisiteInstallation=$false
-        IncludesKeyAuthorizationWait=$true
+        RepositoryAccess='PublicHttps'
+        IncludesKeyAuthorizationWait=$false
         ClusterAlreadyExisted=$clusterAlreadyExisted
         ExcludesRepositoryCopyAndClone=$true
         Steps=@($steps.ToArray())

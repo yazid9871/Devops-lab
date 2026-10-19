@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: ssh://git@ssh.github.com:443/OWNER/REPOSITORY.git
+    repoURL: https://github.com/OWNER/REPOSITORY.git
     targetRevision: main
     path: k8s/postgres
   destination:

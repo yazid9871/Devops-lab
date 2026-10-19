@@ -4,6 +4,58 @@ Commandes à lancer dans **PowerShell, depuis le dossier du projet**.
 Docker Desktop doit être ouvert et le lab installé avec le [README](../README.md).
 Si une commande échoue, s'arrêter et lire son message.
 
+## Périmètre et correspondance avec la référence Sobrus
+
+Ce runbook contient les opérations déjà implémentées dans le lab. Son extension
+vers les technologies Sobrus est suivie dans la [comparaison détaillée](comparaison-sobrus.md).
+Le cahier des charges « Plateforme de référence locale » reste prioritaire : il
+autorise Kustomize et CronJob pg_dump. Les compléments du tableau ci-dessous sont
+des extensions possibles, pas des prérequis supplémentaires pour ce livrable.
+Les résultats historiques se trouvent dans les comptes rendus `validation-*.md`.
+Au contrôle du 19 octobre 2026, Docker et l'API Kubernetes étaient inaccessibles :
+les procédures n'ont pas été rejouées à cette date.
+
+| Rubrique d'exploitation | Procédure locale disponible | Complément à implémenter et tester |
+| --- | --- | --- |
+| Registry | [Registry local](registry.md), publication ci-dessous | Authentification/TLS ; fonctions Harbor à examiner |
+| Accès web et certificats | [Tunnels locaux](acces-interfaces.md) | Traefik, Ingress et cert-manager avec autorité locale |
+| Stockage | Contrôle des PVC ci-dessous | Exercice Rook/Ceph séparé, selon les ressources |
+| Supervision | Diagnostic ci-dessous et [guide](supervision.md) | Collecte des nouveaux composants et test d'alerte de bout en bout |
+| Sauvegardes SQL | Sauvegarde et restauration PostgreSQL ci-dessous | Restic vers stockage objet, archive choisie ; exercice MySQL si retenu |
+| Sauvegarde Kubernetes | Pas encore de procédure Velero | Backup et restauration dans un namespace témoin distinct |
+| GitOps et environnements | Publication et rollback ci-dessous | Chart Helm, valeurs dev/staging, AppProjects et RBAC |
+| Sécurité | Pas encore de procédure Trivy/Falco | Rapports Trivy Operator et événement de test Falco |
+| Nettoyage et VPN | Pas de procédure implémentée | Identifier l'opérateur ; examiner un exercice VPN séparé |
+
+Chaque nouvelle procédure doit préciser objectif, prérequis, effets, commandes,
+résultat attendu, diagnostic, retour arrière et preuve datée. Une rubrique
+« à implémenter » ne doit pas être présentée comme validée.
+
+## 0. Vérifier le lab avant une opération
+
+```powershell
+git status --short
+git branch --show-current
+kubectl --context kind-devops-lab get nodes
+kubectl --context kind-devops-lab get pods -A
+kubectl --context kind-devops-lab -n argocd get applications
+kubectl --context kind-devops-lab -n data get pvc
+```
+
+**Attendu :** nœud `Ready`, applications ArgoCD `Synced / Healthy`, volumes
+PostgreSQL et sauvegardes `Bound`. Un pod de Job en état `Completed` est normal.
+Avant une publication, la branche doit être `main` et `git status --short` vide.
+Le script de publication vérifie aussi la synchronisation avec `origin/main`.
+
+En cas de pod en erreur, relever son namespace et son nom, puis utiliser
+`kubectl --context kind-devops-lab -n <namespace> describe pod <nom>` et
+`kubectl --context kind-devops-lab -n <namespace> logs <nom> --all-containers --tail=50`
+en remplaçant les valeurs entre chevrons. Conserver le message d'erreur avant correction.
+Ne supprimer aucune donnée, aucun cluster ni volume sans accord.
+
+Pour les interfaces : [commandes d'accès](acces-interfaces.md).
+Pour la soutenance : [déroulé de 10 minutes](presentation-10-minutes.md).
+
 ## 1. Déployer l'application
 
 Pour le premier déploiement sur un lab déjà préparé :
@@ -14,6 +66,11 @@ Pour le premier déploiement sur un lab déjà préparé :
 
 Pour publier une nouvelle version, les changements doivent être enregistrés et
 poussés sur `main`, avec un dépôt propre et une identité Git configurée :
+
+La lecture publique en HTTPS ne donne pas le droit de pousser : le compte utilisé
+doit avoir les droits d'écriture sur le dépôt. Plusieurs labs suivant le même dépôt
+recevront les modifications de configuration, mais leurs registries restent propres
+à chaque PC. Vérifier la présence de l'image sur les PC concernés avant ce scénario.
 
 ```powershell
 .\scripts\Publish-Demo.ps1
