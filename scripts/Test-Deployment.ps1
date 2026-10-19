@@ -1,4 +1,4 @@
-# Wait for the current Git commit to be deployed, then test through the Service.
+# Wait for the current Git commit, then test the application through Traefik.
 [CmdletBinding()]
 param()
 $ErrorActionPreference = 'Stop'
@@ -26,11 +26,5 @@ if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect the deployed image.' }
 $deployment = $raw | ConvertFrom-Json
 $web = @($deployment.spec.template.spec.containers | Where-Object { $_.name -eq 'web' })
 if ($web.Count -ne 1 -or $web[0].image -ne $chart.Image) { throw 'The deployed image does not match the Helm values.' }
-$raw = & kubectl --context kind-devops-lab get --raw '/api/v1/namespaces/demo/services/http:devops-demo:http/proxy/version'
-if ($LASTEXITCODE -ne 0) { throw 'Version endpoint failed.' }
-$version = $raw | ConvertFrom-Json
-if ($version.version -ne $expected) { throw "Expected version $expected, got $($version.version)." }
-$raw = & kubectl --context kind-devops-lab get --raw '/api/v1/namespaces/demo/services/http:devops-demo:http/proxy/healthz'
-if ($LASTEXITCODE -ne 0) { throw 'Health endpoint failed.' }
-if (($raw | ConvertFrom-Json).status -ne 'ok') { throw 'Application is not healthy.' }
-Write-Host "PASS: Git revision $target, Synced / Healthy, HTTP version $expected, health ok"
+& (Join-Path $PSScriptRoot 'Test-Https.ps1') -StartTunnel
+Write-Host "PASS: Git revision $target, Synced / Healthy, HTTPS through Traefik, version $expected"

@@ -21,8 +21,8 @@ cert-manager -> autorité locale -> certificat localhost -> Secret devops-demo-t
 
 Le nom `localhost` évite de modifier le fichier `hosts` ou d'utiliser un DNS
 externe. Le certificat est émis pour ce nom. Le tunnel fait passer la requête
-par Traefik ; le tunnel direct du Service applicatif reste disponible pour le
-diagnostic. Le navigateur doit être ouvert sur le PC qui exécute le tunnel.
+uniquement par Traefik ; aucun tunnel direct vers le Service applicatif n'est
+utilisé. Le navigateur doit être ouvert sur le PC qui exécute le tunnel.
 
 TLS se termine dans Traefik. La liaison de Traefik vers l'application reste en
 HTTP dans le cluster. Grafana et ArgoCD gardent leurs accès documentés séparément.
@@ -164,10 +164,16 @@ kubectl --context kind-devops-lab -n demo get endpointslices -l kubernetes.io/se
 
 Ne pas supprimer de Secret TLS, d'autorité, de CRD ou de release pour contourner
 une erreur. Revenir à une configuration Git précédente après examen du commit
-et de ses effets. Le tunnel HTTP direct permet d'isoler un problème applicatif
-d'un problème TLS ; il ne constitue pas une validation HTTPS.
+et de ses effets. Pour diagnostiquer, utiliser les logs, les événements et les
+EndpointSlices ; conserver le chemin HTTPS via Traefik pour les requêtes web.
 
 Sources : [chart Traefik](https://github.com/traefik/traefik-helm-chart/tree/v41.6.1/traefik),
 [installation Helm cert-manager](https://cert-manager.io/docs/installation/helm/),
 [bootstrap SelfSigned](https://cert-manager.io/docs/configuration/selfsigned/),
 [autorité CA](https://cert-manager.io/docs/configuration/ca/).
+
+Le contrôle `Test-Deployment.ps1` vérifie HTTPS via Traefik. Il ouvre un tunnel
+temporaire si nécessaire et ferme seulement celui qu’il a créé. Sous Windows,
+curl/Schannel utilise `--ssl-revoke-best-effort` pour cette autorité locale sans
+point de distribution CRL ; la chaîne et le nom localhost restent vérifiés.
+Aucun `--insecure` ni changement du magasin Windows n’est effectué.

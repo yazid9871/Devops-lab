@@ -3,7 +3,7 @@
 Chaque commande ci-dessous garde son terminal occupé : **utiliser un terminal
 séparé par interface** et le laisser ouvert. `Ctrl+C` ferme le tunnel.
 
-**Application en HTTPS, via Traefik (évolution à déployer et tester) :**
+**Application en HTTPS, uniquement via Traefik :**
 
 ```powershell
 .\scripts\Open-Demo.ps1
@@ -18,14 +18,6 @@ l'autorité locale pour l'utilisateur Windows courant, dans un autre terminal :
 
 Fermer et rouvrir le navigateur. L'installation ne modifie pas la confiance
 Windows automatiquement. Voir le [guide HTTPS](https-local.md) pour le détail.
-
-**Application HTTP directe, pour le diagnostic :**
-
-```powershell
-kubectl --context kind-devops-lab -n demo port-forward svc/devops-demo 8081:80
-```
-
-Ouvrir [localhost:8081](http://localhost:8081).
 
 **Grafana :**
 

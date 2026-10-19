@@ -1,6 +1,6 @@
-# User-run end-to-end check. Open-Demo.ps1 must already be running separately.
+# End-to-end check through Traefik; optionally own a temporary tunnel.
 [CmdletBinding()]
-param([ValidateRange(1,65535)][int]$Port = 8443)
+param([ValidateRange(1,65535)][int]$Port = 8443, [switch]$StartTunnel)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'Lab-DemoChart.ps1')
@@ -16,11 +16,39 @@ if ($ingress.spec.ingressClassName -ne 'traefik-lab' -or @($ingress.spec.rules |
     throw 'The Ingress does not match the expected local Traefik TLS route.'
 }
 $caPath = & (Join-Path $PSScriptRoot 'Export-LabCA.ps1')
-foreach ($endpoint in @('healthz','version')) {
-    $raw = & curl.exe --noproxy '*' --resolve "localhost:${Port}:127.0.0.1" --cacert $caPath --connect-timeout 5 --max-time 15 --fail --silent --show-error "https://localhost:$Port/$endpoint"
-    if ($LASTEXITCODE -ne 0) { throw 'HTTPS validation failed. Keep Open-Demo.ps1 running, and inspect the Certificate and Traefik logs. TLS verification was not disabled.' }
-    $response = $raw | ConvertFrom-Json
-    if ($endpoint -eq 'healthz' -and $response.status -ne 'ok') { throw 'HTTPS health endpoint is not healthy.' }
-    if ($endpoint -eq 'version' -and $response.version -ne $chart.Version) { throw 'HTTPS application version does not match app/VERSION.' }
+function Test-HttpsPort {
+    $client = New-Object Net.Sockets.TcpClient
+    try { return $client.ConnectAsync('127.0.0.1', $Port).Wait(300) }
+    catch { return $false }
+    finally { $client.Dispose() }
 }
-Write-Host "PASS: HTTPS through Traefik, local CA and hostname verified, application version $($chart.Version), health ok."
+$tunnel = $null
+try {
+    if ($StartTunnel -and -not (Test-HttpsPort)) {
+        $logRoot = Join-Path $projectRoot 'work'
+        New-Item -ItemType Directory -Force $logRoot | Out-Null
+        $logName = 'https-check-' + [guid]::NewGuid().ToString('N')
+        $tunnel = Start-Process -FilePath (Get-Command kubectl).Source -WindowStyle Hidden -PassThru -ArgumentList @('--context','kind-devops-lab','-n','traefik','port-forward','svc/traefik',"${Port}:443",'--address=127.0.0.1') -RedirectStandardOutput (Join-Path $logRoot "$logName.out.log") -RedirectStandardError (Join-Path $logRoot "$logName.err.log")
+        $deadline = (Get-Date).AddSeconds(20)
+        while (-not (Test-HttpsPort)) {
+            if ($tunnel.HasExited -or (Get-Date) -gt $deadline) { throw 'Unable to open the Traefik HTTPS tunnel. Inspect work/https-check-*.log.' }
+            Start-Sleep -Milliseconds 250
+        }
+    }
+    $tlsOptions = @()
+    if ((& curl.exe --version) -match 'Schannel') {
+        # This private CA has no CRL distribution point. Retain CA and hostname
+        # validation; tolerate only missing/offline revocation information.
+        $tlsOptions += '--ssl-revoke-best-effort'
+    }
+    foreach ($endpoint in @('healthz','version')) {
+        $raw = & curl.exe @tlsOptions --noproxy '*' --resolve "localhost:${Port}:127.0.0.1" --cacert $caPath --connect-timeout 5 --max-time 15 --fail --silent --show-error "https://localhost:$Port/$endpoint"
+        if ($LASTEXITCODE -ne 0) { throw 'HTTPS validation failed. Keep Open-Demo.ps1 running, and inspect the Certificate and Traefik logs. TLS verification was not disabled.' }
+        $response = $raw | ConvertFrom-Json
+        if ($endpoint -eq 'healthz' -and $response.status -ne 'ok') { throw 'HTTPS health endpoint is not healthy.' }
+        if ($endpoint -eq 'version' -and $response.version -ne $chart.Version) { throw 'HTTPS application version does not match app/VERSION.' }
+    }
+    Write-Host "PASS: HTTPS through Traefik, local CA and hostname verified, application version $($chart.Version), health ok."
+} finally {
+    if ($tunnel -and -not $tunnel.HasExited) { $tunnel.Kill(); $tunnel.WaitForExit() }
+}

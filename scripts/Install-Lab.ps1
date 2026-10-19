@@ -39,7 +39,7 @@ try {
     Invoke-InstallStep 'Cluster, registry and ArgoCD' 'Start-Lab.ps1'
     Invoke-InstallStep 'Traefik, cert-manager and local CA' 'Deploy-Access.ps1'
     Invoke-InstallStep 'Web application' 'Deploy-Demo.ps1'
-    Invoke-InstallStep 'HTTP check' 'Test-Deployment.ps1'
+    Invoke-InstallStep 'HTTPS through Traefik' 'Test-Deployment.ps1'
     Invoke-InstallStep 'PostgreSQL and scheduled backup' 'Deploy-Postgres.ps1'
     Invoke-InstallStep 'Redis' 'Deploy-Redis.ps1'
     Invoke-InstallStep 'Full database restore into a new instance' 'Test-Restore.ps1'
@@ -53,7 +53,7 @@ try {
         RepositoryAccess='PublicHttps'
         ApplicationHttpsEnabled=$demoChart.IngressEnabled
         ApplicationHttpsCertificateReady=$demoChart.IngressEnabled
-        HttpsEndpointTested=$false
+        HttpsEndpointTested=$true
         WindowsTrustStoreChanged=$false
         IncludesKeyAuthorizationWait=$false
         ClusterAlreadyExisted=$clusterAlreadyExisted
@@ -63,7 +63,7 @@ try {
     New-Item -ItemType Directory -Force -Path (Join-Path $projectRoot 'work') | Out-Null
     [IO.File]::WriteAllText((Join-Path $projectRoot 'work/install-report.json'),($report | ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
     Write-Host "`nPASS: application, PostgreSQL, Redis, restore and monitoring checked in $($report.TotalMinutes) minutes."
-    Write-Host "Report: work/install-report.json. Application HTTPS enabled: $($demoChart.IngressEnabled); endpoint validation requires the tunnel (README)."
+    Write-Host "Report: work/install-report.json. HTTPS through Traefik validated."
     Write-Host 'Open HTTPS with scripts/Open-Demo.ps1. Windows certificate trust has not been changed.'
     if ($report.TotalMinutes -gt 30) { Write-Host 'The 30-minute target was exceeded. Inspect the per-step timings in the report.' }
 } finally { Pop-Location }

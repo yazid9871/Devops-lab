@@ -82,6 +82,7 @@ Dans un PowerShell ouvert dans le dossier du projet :
 ```
 
 Garder ce terminal ouvert et aller sur **[https://localhost:8443](https://localhost:8443)**.
+L'accès à l'application passe uniquement par Traefik. Le port direct 8081 n'est plus utilisé.
 
 Pour approuver le certificat du lab pour ton utilisateur Windows, lancer dans
 un autre terminal du projet :

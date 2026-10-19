@@ -37,5 +37,4 @@ if ($chart.IngressEnabled) {
 & kubectl --context kind-devops-lab -n demo get pods
 if ($LASTEXITCODE -ne 0) { throw 'Unable to list demo pods.' }
 Write-Host 'ArgoCD: Synced / Healthy'
-if ($chart.IngressEnabled) { Write-Host 'Next: scripts/Open-Demo.ps1 -> https://localhost:8443' }
-else { Write-Host 'Ingress is disabled in the chart. Use the direct Service tunnel documented in docs/acces-interfaces.md.' }
+Write-Host 'Next: scripts/Open-Demo.ps1 -> https://localhost:8443 (Traefik only)'

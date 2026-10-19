@@ -217,6 +217,10 @@ Le tunnel transporte TLS jusqu'à Traefik. Celui-ci termine HTTPS et transmet en
 HTTP au Service de l'application. Le Service vise le port nommé `http` du pod,
 qui écoute sur 8080. Aucun accès aux bases n'intervient dans cette requête.
 
+L'accès depuis le PC passe uniquement par Traefik sur `https://localhost:8443`.
+Le tunnel direct 8081 est fermé et ne fait plus partie du parcours du lab.
+Le Service et le HTTP internes restent nécessaires entre Traefik et l'application.
+
 L'Ingress utilise uniquement l'entrée `websecure`. Il n'y a pas de redirection
 HTTP automatique configurée. Traefik n'est pas exposé par un LoadBalancer cloud
 ou un NodePort ; son Service est un `ClusterIP`. Le tunnel doit rester ouvert.
@@ -240,7 +244,6 @@ modifiée automatiquement par l'installation.
 | Service | Port interne | Accès depuis le PC |
 | --- | --- | --- |
 | Application via Traefik | Service Traefik 443 | `https://localhost:8443` avec `Open-Demo.ps1` |
-| Application directe | Service 80 → conteneur 8080 | `http://localhost:8081` avec tunnel de diagnostic |
 | ArgoCD | Service `argocd-server` 443 | `https://localhost:8080` avec tunnel |
 | Grafana | 3000 | `http://localhost:3000` avec tunnel |
 | Prometheus | 9090 | `http://localhost:9090` avec tunnel |
@@ -383,7 +386,7 @@ Le point d'entrée `scripts/Install-Lab.ps1` orchestre :
 1. La présence des outils, le dépôt public, `main` et sa synchronisation Git.
 2. Le cluster, le registry et ArgoCD par `Start-Lab.ps1`.
 3. Traefik, cert-manager et l'autorité locale par `Deploy-Access.ps1`.
-4. L'application Helm via ArgoCD, puis son contrôle HTTP interne.
+4. L'application Helm via ArgoCD, puis son contrôle HTTPS via Traefik.
 5. PostgreSQL et son CronJob, puis Redis.
 6. Une restauration sur une nouvelle cible.
 7. La supervision et ses contrôles.

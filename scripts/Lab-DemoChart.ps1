@@ -16,6 +16,7 @@ function Get-LabDemoChart {
     }
     $ingress = [regex]::Match($values, '(?m)^ingress:\r?\n  enabled: (?<enabled>true|false)\r?$')
     if (-not $ingress.Success) { throw 'Expected ingress.enabled: true or false in the Helm values.' }
+    if ($ingress.Groups['enabled'].Value -ne 'true') { throw 'This lab exposes the application only through Traefik: keep ingress.enabled: true.' }
     [pscustomobject]@{
         ChartPath = $chartPath
         ValuesPath = $valuesPath

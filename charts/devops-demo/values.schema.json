@@ -23,7 +23,7 @@
       "type": "object",
       "required": ["enabled", "className", "host", "tls"],
       "properties": {
-        "enabled": {"type": "boolean"},
+        "enabled": {"const": true},
         "className": {"const": "traefik-lab"},
         "host": {"const": "localhost"},
         "tls": {
