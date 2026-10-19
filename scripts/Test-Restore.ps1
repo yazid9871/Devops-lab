@@ -10,6 +10,7 @@ function Get-SourceFingerprint {
     return $lines
 }
 # A row added after init.sql proves that the restored data comes from the dump.
+Write-Host "`n1. Backup"
 $marker = Get-Random -Minimum 100000 -Maximum 2000000000
 $sql = "INSERT INTO demo_items (id,name,quantity) VALUES ($marker,'Restauration test $marker',42);"
 $sql | & kubectl --context kind-devops-lab -n data exec -i postgres-0 -- psql -h postgres.data.svc.cluster.local -U lab -d lab -q -v ON_ERROR_STOP=1 -f - | Out-Host
@@ -27,14 +28,17 @@ $scriptsCm = ($cron.spec.jobTemplate.spec.template.spec.volumes | Where-Object {
 $name = 'postgres-restore-' + (Get-Date).ToUniversalTime().ToString('yyyyMMddHHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0,6)
 $template = [IO.File]::ReadAllText((Join-Path $projectRoot 'k8s/restore/instance.template.json')).Replace('__RESTORE_NAME__',$name)
 $timer = [Diagnostics.Stopwatch]::StartNew()
+Write-Host "`n2. Create restore target"
 $template | & kubectl --context kind-devops-lab apply -f - | Out-Host
 if ($LASTEXITCODE -ne 0) { throw 'Unable to create the fresh restoration target.' }
 & kubectl --context kind-devops-lab -n data rollout status "statefulset/$name" --timeout=240s | Out-Host
 if ($LASTEXITCODE -ne 0) { throw 'Restoration target did not become ready.' }
+Write-Host "`n3. Restore database"
 $jobTemplate = [IO.File]::ReadAllText((Join-Path $projectRoot 'k8s/restore/job.template.json')).Replace('__RESTORE_NAME__',$name).Replace('__BACKUP_DIR__',$backup.BackupDir).Replace('__SCRIPTS_CM__',$scriptsCm)
 $jobTemplate | & kubectl --context kind-devops-lab apply -f - | Out-Host
 if ($LASTEXITCODE -ne 0) { throw 'Unable to create the restoration job.' }
 & (Join-Path $PSScriptRoot 'Wait-LabJob.ps1') -Name "$name-job"
+Write-Host "`n4. Verify data"
 $logs = @(& kubectl --context kind-devops-lab -n data logs "job/$name-job")
 if ($LASTEXITCODE -ne 0) { throw 'Unable to read restore verification.' }
 $logs | Out-Host
@@ -52,7 +56,10 @@ $report = [ordered]@{
 }
 $reportPath = Join-Path (Join-Path $projectRoot 'backups') "$name-report.json"
 [IO.File]::WriteAllText($reportPath,($report | ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
-Write-Host "PASS: full database restored into $name"
-Write-Host "Restore: $($report.RestoreMilliseconds) ms; target creation and checks: $($report.TotalSeconds) seconds"
+$rows = ($expected | Where-Object { $_ -match '^ROWS=\d+$' }) -replace '^ROWS=', ''
+Write-Host "`nRESTORE TEST: PASS"
+Write-Host "Rows verified: $rows"
+Write-Host "Restore: $($report.RestoreMilliseconds) ms"
+Write-Host "Target creation and checks: $($report.TotalSeconds) s (excluding backup)"
+Write-Host "Source database kept running: $($report.SourceKeptRunning)"
 Write-Host "Report: $reportPath"
-[pscustomobject]$report
