@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1120" viewBox="0 0 1600 1120">
 <title>Architecture du lab DevOps local</title>
-<desc>Un PC Windows avec Docker Desktop, un cluster kind, ArgoCD, une application Python, PostgreSQL, Redis, des sauvegardes et la supervision. Helm, Traefik et cert-manager sont deployes. Sauvegarde PostgreSQL toutes les cinq minutes avec attente de disponibilite. Grafana affiche tous les pods.</desc>
+<desc>Un PC Windows avec Docker Desktop, un cluster kind, ArgoCD, une application Python, PostgreSQL, Redis, des sauvegardes et la supervision. Helm, Traefik et cert-manager sont deployes. Sauvegarde PostgreSQL toutes les cinq minutes avec attente de disponibilite. Grafana affiche tous les pods. Ingress devops-demo definit le routage localhost applique par Traefik. Application independante de PostgreSQL et Redis.</desc>
 <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L8,4 L0,8 Z" fill="#475569"/></marker></defs>
 <rect width="1600" height="1120" fill="white"/>
 <text x="80" y="59" font-family="Segoe UI, Arial, sans-serif" font-size="35" fill="#17202c" font-weight="600" text-anchor="start">Architecture du lab DevOps local</text>
-<text x="80" y="93" font-family="Segoe UI, Arial, sans-serif" font-size="20" fill="#64748b" font-weight="400" text-anchor="start">État déployé au 19 octobre 2026 — infrastructure locale et flux principaux</text>
+<text x="80" y="93" font-family="Segoe UI, Arial, sans-serif" font-size="20" fill="#64748b" font-weight="400" text-anchor="start">Architecture du projet — composants recréés lors de l’installation</text>
 <rect x="150" y="270" width="1370" height="740" rx="0" fill="white" stroke="#89919a" stroke-width="2" stroke-dasharray="9 7"/>
 <text x="220" y="306" font-family="Segoe UI, Arial, sans-serif" font-size="24" fill="#17202c" font-weight="600" text-anchor="start">PC Windows · Docker Desktop / WSL 2</text>
 <rect x="210" y="485" width="1260" height="475" rx="0" fill="white" stroke="#89919a" stroke-width="2" stroke-dasharray="9 7"/>
@@ -47,15 +47,19 @@
 <path d="M346,600 L351,594 L356,600 M362,600 L367,594 L372,600" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="355" y="655" font-family="Segoe UI, Arial, sans-serif" font-size="22" fill="#17202c" font-weight="600" text-anchor="middle">Traefik</text>
 <text x="355" y="672" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#64748b" font-weight="400" text-anchor="middle">Entrée HTTPS</text>
-<rect x="550" y="550" width="240" height="130" rx="0" fill="white" stroke="#89919a" stroke-width="1.8" stroke-dasharray="9 7"/>
-<text x="563" y="575" font-family="Segoe UI, Arial, sans-serif" font-size="17" fill="#17202c" font-weight="400" text-anchor="start">namespace demo</text>
-<circle cx="670" cy="607" r="26" fill="#eef5ff" stroke="none" stroke-width="1.5"/>
-<path d="M653,609 V597 Q653,587 665,587 H678 Q689,587 689,598 V606 H668 V615 H653 Z" fill="#3675a8" stroke="none" stroke-width="0" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M687,605 V617 Q687,627 675,627 H662 Q651,627 651,616 V608 H672 V599 H687 Z" fill="#f6cf45" stroke="none" stroke-width="0" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="664" cy="594" r="2.3" fill="white" stroke="none" stroke-width="1.5"/>
-<circle cx="676" cy="620" r="2.3" fill="white" stroke="none" stroke-width="1.5"/>
+<rect x="550" y="510" width="240" height="185" rx="0" fill="white" stroke="#89919a" stroke-width="1.8" stroke-dasharray="9 7"/>
+<text x="563" y="535" font-family="Segoe UI, Arial, sans-serif" font-size="17" fill="#17202c" font-weight="400" text-anchor="start">namespace demo</text>
+<rect x="560" y="545" width="220" height="40" rx="4" fill="#eef7fb" stroke="#6a91a5" stroke-width="1.8"/>
+<text x="670" y="562" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#17202c" font-weight="600" text-anchor="middle">Ingress devops-demo</text>
+<text x="670" y="578" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#475569" font-weight="400" text-anchor="middle">Règle localhost → Service :80</text>
+<circle cx="670" cy="618" r="26" fill="#eef5ff" stroke="none" stroke-width="1.5"/>
+<path d="M653,620 V608 Q653,598 665,598 H678 Q689,598 689,609 V617 H668 V626 H653 Z" fill="#3675a8" stroke="none" stroke-width="0" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M687,616 V628 Q687,638 675,638 H662 Q651,638 651,627 V619 H672 V610 H687 Z" fill="#f6cf45" stroke="none" stroke-width="0" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="664" cy="605" r="2.3" fill="white" stroke="none" stroke-width="1.5"/>
+<circle cx="676" cy="631" r="2.3" fill="white" stroke="none" stroke-width="1.5"/>
 <text x="670" y="655" font-family="Segoe UI, Arial, sans-serif" font-size="21" fill="#17202c" font-weight="600" text-anchor="middle">Application Python</text>
 <text x="670" y="672" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#64748b" font-weight="400" text-anchor="middle">Déploiement avec Helm</text>
+<text x="670" y="688" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#64748b" font-weight="400" text-anchor="middle">Service :80 → pod :8080</text>
 <rect x="880" y="550" width="240" height="130" rx="0" fill="white" stroke="#89919a" stroke-width="1.8" stroke-dasharray="9 7"/>
 <text x="893" y="575" font-family="Segoe UI, Arial, sans-serif" font-size="17" fill="#17202c" font-weight="400" text-anchor="start">namespace argocd</text>
 <circle cx="1000" cy="602" r="18.2" fill="#ef8053" stroke="none" stroke-width="1.5"/>
@@ -122,7 +126,7 @@
 <path d="M1000,250 V550" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
 <text x="1020" y="381" font-family="Segoe UI, Arial, sans-serif" font-size="18" fill="#475569" font-weight="400" text-anchor="start">lit main</text>
 <text x="1020" y="404" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#64748b" font-weight="400" text-anchor="start">HTTPS public</text>
-<path d="M660,440 V550" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M660,440 V510" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
 <text x="679" y="475" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#475569" font-weight="400" text-anchor="start">pull image</text>
 <rect x="36" y="592" width="58" height="43" rx="4" fill="white" stroke="#4f8ab8" stroke-width="2.5"/>
 <path d="M37,604 H93" fill="none" stroke="#4f8ab8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -144,7 +148,9 @@
 <text x="655" y="836" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#475569" font-weight="400" text-anchor="middle">pg_dump</text>
 <path d="M430,915 V944 H1405 V930" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
 <text x="845" y="984" font-family="Segoe UI, Arial, sans-serif" font-size="17" fill="#475569" font-weight="400" text-anchor="middle">métriques via exporteurs</text>
+<path d="M560,565 H505 V530 H355 V550" fill="none" stroke="#6a91a5" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+<text x="430" y="520" font-family="Segoe UI, Arial, sans-serif" font-size="13" fill="#475569" font-weight="400" text-anchor="middle">règle de routage</text>
 <circle cx="88" cy="1050" r="6" fill="#20945b" stroke="none" stroke-width="1.5"/>
-<text x="105" y="1057" font-family="Segoe UI, Arial, sans-serif" font-size="19" fill="#236344" font-weight="400" text-anchor="start">Déployés et vérifiés : Helm, Traefik, cert-manager, sauvegardes et supervision.</text>
-<text x="80" y="1090" font-family="Segoe UI, Arial, sans-serif" font-size="18" fill="#64748b" font-weight="400" text-anchor="start">L’application web n’utilise pas encore les bases. Les sauvegardes PostgreSQL restent sur le même PC.</text>
+<text x="105" y="1057" font-family="Segoe UI, Arial, sans-serif" font-size="19" fill="#236344" font-weight="400" text-anchor="start">Trafic : flèches pleines · Configuration Ingress : flèche pointillée.</text>
+<text x="80" y="1090" font-family="Segoe UI, Arial, sans-serif" font-size="18" fill="#64748b" font-weight="400" text-anchor="start">Application indépendante de PostgreSQL et Redis · Sauvegardes sur le même PC.</text>
 </svg>

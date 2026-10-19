@@ -6,16 +6,16 @@ Document du 19 octobre 2026, établi à partir des fichiers du projet.
 seul nœud et des données fictives. GitHub et les registres de téléchargement
 restent des dépendances externes. L'exécution des services du lab est locale.
 
-**État au 19 octobre 2026 :** Helm, Traefik et cert-manager sont publiés et
-déployés ; l'application est synchronisée et saine dans ArgoCD et son certificat
-est prêt. L'installation contrôlée sur ce PC a duré 5,86 minutes avec prérequis
+**Validation historique du 19 octobre 2026 :** Helm, Traefik et cert-manager ont
+été déployés ; l'application a été contrôlée Synced / Healthy et son certificat
+Ready. L'installation contrôlée sur ce PC a duré 5,86 minutes avec prérequis
 et certaines images déjà présents. Une restauration dans une instance vide a
 récupéré quatre lignes en 12,96 secondes, hors sauvegarde.
 
 La sauvegarde attend maintenant PostgreSQL avant `pg_dump`. Les contrôles de
 reprise et une sauvegarde réelle avec SHA-256 ont réussi. Grafana affiche tous
-les pods dans un tableau unique, vérifié dans le navigateur. Le renouvellement
-réel des certificats et le parcours HTTPS complet restent à vérifier séparément.
+les pods dans un tableau unique, vérifié dans le navigateur. Le contrôle HTTPS
+via Traefik a réussi ; le renouvellement réel des certificats reste à observer.
 
 ## 1. Vue d'ensemble
 
@@ -24,7 +24,12 @@ réel des certificats et le parcours HTTPS complet restent à vérifier séparé
 ![Architecture locale simplifiée](diagrams/architecture-locale.png)
 
 [Version SVG modifiable](diagrams/architecture-locale.svg).
-Le schéma décrit les composants maintenant déployés. Il conserve un seul PC et un seul cluster ; il ne représente pas les régions cloud ou les
+L'Ingress `devops-demo`, dans le namespace `demo`, définit la règle
+`localhost -> Service devops-demo:80`. La flèche pointillée indique la
+configuration lue par Traefik ; le trafic suit les flèches pleines.
+
+Le schéma décrit la configuration recréée par l'installation, indépendamment de
+l'état courant du cluster. Il conserve un seul PC et un seul cluster ; il ne représente pas les régions cloud ou les
 environnements de production de la référence Sobrus.
 
 ### Vue technique complémentaire
