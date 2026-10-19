@@ -14,9 +14,8 @@ récupéré quatre lignes en 12,96 secondes, hors sauvegarde.
 
 La sauvegarde attend maintenant PostgreSQL avant `pg_dump`. Les contrôles de
 reprise et une sauvegarde réelle avec SHA-256 ont réussi. Grafana affiche tous
-les pods dans un tableau unique, vérifié dans le navigateur. L'API v3 a été
-vérifiée via Traefik en HTTPS avec l'autorité locale et le nom localhost validés.
-La confiance du navigateur et le renouvellement réel restent des contrôles distincts.
+les pods dans un tableau unique, vérifié dans le navigateur. Le renouvellement
+réel des certificats et le parcours HTTPS complet restent à vérifier séparément.
 
 ## 1. Vue d'ensemble
 
@@ -64,7 +63,6 @@ flowchart TB
   BROWSER -->|"HTTPS / tunnel local 8443"| TR
   TR -->|"HTTP vers le Service"| WEB
   CM -->|"certificat via Secret TLS"| TR
-  WEB -->|"TCP 5432 / rôle devops_app"| PG
   BACKUP -->|"pg_dump par TCP"| PG
   BACKUP -->|"archive conservée"| RESTORE
   BACKUP -->|"export manuel par script"| EXPORTS
@@ -76,9 +74,8 @@ flowchart TB
 Les flèches résument les échanges ; la partie sauvegarde/restauration est
 détaillée plus bas. Les composants sont déployés dans le même cluster local.
 
-**L'application Python utilise PostgreSQL pour conserver ses tâches.** Redis
-reste un exercice de cache indépendant. Le rôle applicatif `devops_app` a des
-droits limités sur `app_tasks`, avec un Secret dans `demo`. ArgoCD
+**L'application Python ne se connecte actuellement ni à PostgreSQL ni à Redis.**
+Ces deux services servent à des exercices d'exploitation indépendants. ArgoCD
 n'est pas dans le chemin des requêtes HTTP des utilisateurs.
 
 ## 2. Les trois niveaux d'exécution
@@ -218,8 +215,7 @@ flowchart LR
 
 Le tunnel transporte TLS jusqu'à Traefik. Celui-ci termine HTTPS et transmet en
 HTTP au Service de l'application. Le Service vise le port nommé `http` du pod,
-qui écoute sur 8080. Les routes `/api/tasks` lisent et écrivent ensuite dans
-PostgreSQL ; les fichiers de la page d'accueil restent servis par Python.
+qui écoute sur 8080. Aucun accès aux bases n'intervient dans cette requête.
 
 L'Ingress utilise uniquement l'entrée `websecure`. Il n'y a pas de redirection
 HTTP automatique configurée. Traefik n'est pas exposé par un LoadBalancer cloud
@@ -266,11 +262,7 @@ nouvelle PKI applicative.
 PostgreSQL utilise un StatefulSet à une réplique (`postgres-0`), la base et
 l'utilisateur `lab`, ainsi qu'un PVC de données de 1 Gi. Ses identifiants sont
 générés localement dans `postgres-credentials`. Le jeu fictif est initialisé par
-ConfigMap et contient la table `demo_items`. Le script `Connect-AppDatabase.ps1`
-ajoute `app_tasks` sans effacer les données. Le rôle `devops_app` reçoit les
-droits SELECT/INSERT/UPDATE sur cette table et USAGE sur sa séquence ; son
-Secret est dans le namespace `demo`. La readiness vérifie la base ; la liveness
-vérifie uniquement le processus HTTP.
+ConfigMap et contient la table `demo_items`.
 
 Le Service PostgreSQL est headless (`clusterIP: None`). Les clients du lab
 utilisent `postgres.data.svc.cluster.local:5432`. Les tests passent par TCP et
@@ -391,9 +383,8 @@ Le point d'entrée `scripts/Install-Lab.ps1` orchestre :
 1. La présence des outils, le dépôt public, `main` et sa synchronisation Git.
 2. Le cluster, le registry et ArgoCD par `Start-Lab.ps1`.
 3. Traefik, cert-manager et l'autorité locale par `Deploy-Access.ps1`.
-4. PostgreSQL et son CronJob.
-5. Le compte applicatif et sa table, l'application Helm via ArgoCD, son contrôle
-   HTTP et sa readiness PostgreSQL, puis Redis.
+4. L'application Helm via ArgoCD, puis son contrôle HTTP interne.
+5. PostgreSQL et son CronJob, puis Redis.
 6. Une restauration sur une nouvelle cible.
 7. La supervision et ses contrôles.
 8. Un rapport de durée dans `work/install-report.json`.
@@ -463,9 +454,9 @@ J'utilise Helm pour organiser l'application, Traefik pour son accès et
 cert-manager pour les certificats. PostgreSQL sert au scénario de sauvegarde et
 restauration : une sauvegarde est programmée toutes les cinq minutes. Redis sert
 à un exercice de cache, et Prometheus/Grafana à la supervision de tous les pods.
-L'application conserve ses tâches dans PostgreSQL ; Redis reste indépendant.
+Ces services sont indépendants de l'application web dans la version actuelle.
 Le runbook décrit les opérations, les résultats attendus et les limites. »
 
-Liens : [application et PostgreSQL](application-postgresql.md), [runbook](runbook.md), [Helm](helm.md), [HTTPS](https-local.md),
+Liens : [runbook](runbook.md), [Helm](helm.md), [HTTPS](https-local.md),
 [sauvegarde/restauration](sauvegarde-restauration.md), [supervision](supervision.md),
 [comparaison avec Sobrus](comparaison-sobrus.md).

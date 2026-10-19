@@ -3,8 +3,8 @@
 Installer sur Windows un lab Kubernetes avec **kind, ArgoCD, Helm, Traefik,
 cert-manager, PostgreSQL, Redis, Prometheus et Grafana**.
 
-L'application permet d'ajouter et de terminer des tâches conservées dans
-PostgreSQL. Redis est installé séparément, sans connexion applicative pour le moment.
+> Les ajouts Helm et HTTPS sont prêts dans le dépôt ; leur première installation
+> complète reste à valider.
 
 ## 1. Préparer le PC
 
@@ -110,7 +110,6 @@ $encoded = kubectl --context kind-devops-lab -n monitoring get secret lab-grafan
 
 ## Documentation
 
-- [Application et connexion PostgreSQL](docs/application-postgresql.md)
 - [Schéma d’architecture](docs/diagrams/architecture-locale.png)
 - [Documentation d’exploitation (PDF)](output/pdf/Documentation-exploitation-Devops-lab.pdf)
 - [Runbook : déployer, restaurer et diagnostiquer](docs/runbook.md)

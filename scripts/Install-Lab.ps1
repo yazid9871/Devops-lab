@@ -38,9 +38,9 @@ try {
     Write-Host "Repository: $($repository.WebUrl)"
     Invoke-InstallStep 'Cluster, registry and ArgoCD' 'Start-Lab.ps1'
     Invoke-InstallStep 'Traefik, cert-manager and local CA' 'Deploy-Access.ps1'
-    Invoke-InstallStep 'PostgreSQL and scheduled backup' 'Deploy-Postgres.ps1'
     Invoke-InstallStep 'Web application' 'Deploy-Demo.ps1'
     Invoke-InstallStep 'HTTP check' 'Test-Deployment.ps1'
+    Invoke-InstallStep 'PostgreSQL and scheduled backup' 'Deploy-Postgres.ps1'
     Invoke-InstallStep 'Redis' 'Deploy-Redis.ps1'
     Invoke-InstallStep 'Full database restore into a new instance' 'Test-Restore.ps1'
     Invoke-InstallStep 'Prometheus, Grafana and alerts' 'Deploy-Monitoring.ps1'

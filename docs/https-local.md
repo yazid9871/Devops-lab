@@ -2,12 +2,10 @@
 
 ## État de cette évolution
 
-Traefik et cert-manager ont été déployés le 19 octobre 2026. Le certificat est
-prêt. Les API de la version v3 ont été vérifiées en HTTPS avec Python/OpenSSL,
-en validant l'autorité locale et le nom localhost. La confiance du navigateur
-reste à établir séparément ; le renouvellement réel n'a pas encore été observé.
-Le contrôle curl/Schannel a signalé une révocation inconnue pour cette PKI locale.
-Voir le [compte rendu](validation-application-postgresql.md) pour les limites.
+Les fichiers ont été préparés le 19 octobre 2026. Aucun déploiement, aucun rendu
+Helm et aucun test fonctionnel de cette évolution n'ont été exécutés. Les
+commandes ci-dessous sont destinées à la phase d'installation et de tests de
+l'utilisateur. Ne pas présenter le renouvellement ou le HTTPS comme validés.
 
 ## Architecture
 

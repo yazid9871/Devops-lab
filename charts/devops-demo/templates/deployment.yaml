@@ -31,26 +31,9 @@ spec:
           ports:
             - name: http
               containerPort: 8080
-          env:
-            - name: PGHOST
-              value: postgres.data.svc.cluster.local
-            - name: PGPORT
-              value: "5432"
-            - name: PGDATABASE
-              value: lab
-            - name: PGUSER
-              valueFrom:
-                secretKeyRef:
-                  name: app-postgres-credentials
-                  key: username
-            - name: PGPASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: app-postgres-credentials
-                  key: password
           readinessProbe:
             httpGet:
-              path: /readyz
+              path: /healthz
               port: http
             periodSeconds: 5
           livenessProbe:
