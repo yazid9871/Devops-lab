@@ -16,6 +16,12 @@ leur Secret ne sont pas supprimes par cette modification.
 
 Le nouveau parcours doit etre teste par l'utilisateur sur l'autre PC. Les mesures
 ci-dessous concernent l'ancien parcours SSH ; elles ne valident pas cette modification.
+Une migration de l'application vers Helm est egalement preparee : Helm est un
+prerequis supplementaire. Elle n'a pas ete deployee ni testee ; voir [le guide](helm.md).
+L'installation appelle aussi `Deploy-Access.ps1` pour Traefik et cert-manager,
+avant l'application. Les fichiers sont prets, mais aucune validation fonctionnelle
+de ces ajouts n'a ete realisee. Le [guide HTTPS](https-local.md) distingue
+certificat pret, confiance du navigateur et validation du trafic HTTPS.
 
 ## Verifications historiques du 16 octobre 2026 (depot alors prive, parcours SSH)
 

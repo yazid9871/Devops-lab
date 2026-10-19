@@ -3,6 +3,7 @@
 param([ValidateRange(0, 999999)][int]$Version = 0)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'Lab-DemoChart.ps1')
 function Invoke-CiCommand {
     param([string]$Tool, [string[]]$Arguments)
     & $Tool @Arguments
@@ -12,6 +13,9 @@ Push-Location $projectRoot
 $previousContext = $env:DOCKER_CONTEXT
 $env:DOCKER_CONTEXT = 'desktop-linux'
 try {
+    foreach ($tool in @('git','docker','helm')) {
+        if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { throw "$tool is missing. Install the prerequisites in README." }
+    }
     $branch = & git branch --show-current
     if ($LASTEXITCODE -ne 0 -or $branch -ne 'main') { throw 'Run the pipeline from branch main.' }
     $pending = & git status --porcelain
@@ -24,7 +28,8 @@ try {
     $remote = & git rev-parse origin/main
     if ($LASTEXITCODE -ne 0 -or $head -ne $remote) { throw 'Local main must match origin/main before publishing.' }
     $tags = (Invoke-RestMethod -Uri 'http://127.0.0.1:5001/v2/devops-demo/tags/list' -TimeoutSec 10).tags
-    $current = [int]([IO.File]::ReadAllText((Join-Path $projectRoot 'app/VERSION')).Trim())
+    $chart = Get-LabDemoChart -ProjectRoot $projectRoot
+    $current = [int]$chart.Version
     if ($Version -eq 0) {
         $numbers = @($current)
         foreach ($tag in $tags) { if ($tag -match '^v(\d+)$') { $numbers += [int]$Matches[1] } }
@@ -32,8 +37,12 @@ try {
     }
     if ($tags -contains "v$Version") { throw "Image v$Version already exists. Choose a new version; existing tags are preserved." }
     $image = "localhost:5001/devops-demo:v$Version"
+    $values = [regex]::Replace($chart.Values, $chart.TagPattern, ('  tag: "v' + $Version + '"'))
     Write-Host "[1/4] Build $image"
     [IO.File]::WriteAllText((Join-Path $projectRoot 'app/VERSION'), "$Version`n", [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($chart.ValuesPath, $values, [Text.UTF8Encoding]::new($false))
+    Invoke-CiCommand helm @('lint', $chart.ChartPath, '--strict')
+    Invoke-CiCommand helm @('template', 'devops-demo', $chart.ChartPath, '--namespace', 'demo') | Out-Null
     Invoke-CiCommand docker @('build', '--provenance=false', '--tag', $image, (Join-Path $projectRoot 'app'))
 
     Write-Host '[2/4] Test image (HTTP, health, version, 404)'
@@ -44,13 +53,7 @@ try {
     Invoke-CiCommand docker @('push', $image)
 
     Write-Host '[4/4] Update Git'
-    $manifestPath = Join-Path $projectRoot 'k8s/demo/kustomization.yaml'
-    $manifest = [IO.File]::ReadAllText($manifestPath)
-    if ([regex]::Matches($manifest, '(?m)^    newTag: v\d+\r?$').Count -ne 1) { throw 'Expected one numeric image tag in kustomization.yaml.' }
-    $manifest = [regex]::Replace($manifest, '(?m)^    newTag: v\d+\r?$', "    newTag: v$Version")
-    [IO.File]::WriteAllText($manifestPath, $manifest, [Text.UTF8Encoding]::new($false))
-    Invoke-CiCommand kubectl @('kustomize', (Join-Path $projectRoot 'k8s/demo'))
-    Invoke-CiCommand git @('add', '--', 'app/VERSION', 'k8s/demo/kustomization.yaml')
+    Invoke-CiCommand git @('add', '--', 'app/VERSION', 'charts/devops-demo/values.yaml')
     Invoke-CiCommand git @('diff', '--cached', '--check')
     Invoke-CiCommand git @('commit', '-m', "Deploy demo v$Version")
     $commit = & git rev-parse HEAD

@@ -1,17 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: devops-demo
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
-  replicas: 1
+  replicas: {{ .Values.replicaCount }}
   revisionHistoryLimit: 3
   selector:
     matchLabels:
-      app: devops-demo
+      app: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app: devops-demo
+        app: {{ .Release.Name }}
     spec:
       automountServiceAccountToken: false
       securityContext:
@@ -22,8 +26,8 @@ spec:
           type: RuntimeDefault
       containers:
         - name: web
-          image: devops-demo:v1
-          imagePullPolicy: IfNotPresent
+          image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
               containerPort: 8080
@@ -39,12 +43,7 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 10
           resources:
-            requests:
-              cpu: 50m
-              memory: 32Mi
-            limits:
-              cpu: 250m
-              memory: 128Mi
+            {{- toYaml .Values.resources | nindent 12 }}
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

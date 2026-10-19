@@ -1,0 +1,7 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: devops-lab-ca
+spec:
+  ca:
+    secretName: devops-lab-root-ca

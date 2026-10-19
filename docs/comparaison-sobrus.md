@@ -25,7 +25,7 @@ de l'utilisateur, qui remplace les 20 minutes du document initial.
 
 | Attendu du premier PDF | Éléments présents dans le projet | Preuve ou réserve |
 | --- | --- | --- |
-| Cluster local, ArgoCD, application Helm ou Kustomize | kind, ArgoCD, application Python et Kustomize | Choix permis ; validations enregistrées dans `validation-jour1.md`, état courant à revérifier |
+| Cluster local, ArgoCD, application Helm ou Kustomize | kind, ArgoCD, application Python ; migration vers Helm préparée dans les fichiers | Ancien parcours Kustomize documenté dans `validation-jour1.md` ; migration Helm non déployée et non testée |
 | CI minimale : build, publication et mise à jour de configuration | `Publish-Demo.ps1` | Chaîne scriptée lancée manuellement ; aucune CI hébergée ni déclenchement automatique sur commit |
 | Synchronisation automatique et rollback | Applications ArgoCD et retour arrière par Git | Preuves historiques à présenter ; ne pas confondre rollback applicatif et migration de base |
 | PostgreSQL, Redis si possible | Manifests, scripts et tests des deux services | Services testés indépendamment de l'application web |
@@ -62,15 +62,15 @@ cela ne signifie pas qu'un nouveau test en fonctionnement vient de réussir.
 | --- | --- | --- |
 | Kubernetes managé OVH, clusters admin et production (p. 6, 13–14, 21) | kind sur Docker Desktop ; une configuration de cluster, namespaces séparés | Conserver kind ; documenter la différence entre namespaces et clusters distincts. Aucune haute disponibilité physique sur un seul PC. |
 | Registry privé ; Harbor cité pour les scans (p. 10, 26) | Distribution `registry:3`, volume Docker, port Windows lié à `127.0.0.1:5001` ; aucune authentification configurée dans le script | Le stockage et la publication sont représentés, mais pas les fonctions Harbor ni ses accès. Ajouter authentification/TLS ; étudier Harbor comme extension distincte. |
-| Traefik, accès HTTP et terminaison TLS (p. 10) | Accès documentés par `kubectl port-forward`, aucun manifest Traefik | Installer Traefik et exposer l'application par un Ingress local. Un tunnel vers Traefik peut transporter le trafic sur le cluster existant sans le recréer ; le routage doit réellement passer par Traefik. |
-| cert-manager et certificats TLS (p. 27–28) | Aucun manifest cert-manager ; certificat ArgoCD local | Installer cert-manager avec une autorité de certification de lab. Tester émission et renouvellement. Cette autorité locale remplace l'émetteur public dans l'exercice ; son certificat doit être explicitement approuvé par le client de test. |
+| Traefik, accès HTTP et terminaison TLS (p. 10) | Installation Helm versionnée, Ingress applicatif et tunnel vers Traefik préparés dans les fichiers | Accès prévu `https://localhost:8443`, sans recréer le cluster. Aucun déploiement ni test effectué. Le tunnel transporte le trafic vers Traefik, qui termine TLS. |
+| cert-manager et certificats TLS (p. 27–28) | Installation Helm versionnée, bootstrap d'une autorité locale et Certificate applicatif préparés | Émission, validation HTTPS et renouvellement à tester. La confiance Windows reste une action explicite ; aucune autorité publique ni validation ACME n'est reproduite. |
 | Rook/Ceph et stockage OVH Cinder (p. 9, 11–13) | PVC PostgreSQL, sauvegardes, Grafana et Prometheus ; aucune configuration Rook/Ceph | Tester d'abord la persistance locale. Préparer un exercice Rook/Ceph séparé après contrôle du stockage, du noyau et des ressources. Ne pas migrer les volumes existants pour cet exercice. |
 | Prometheus et Grafana (p. 13–14) | Manifests et dashboard provisionnés ; exporteurs PostgreSQL, Redis et kube-state-metrics | Même famille d'outils. Vérifier collecte, panneaux et alertes ; le lab ne reproduit pas la supervision de deux clusters ni tous les dashboards du PDF. |
 | Sauvegarde SQL planifiée ; MySQL explicitement cité (p. 15–16) | PostgreSQL, `pg_dump`, CronJob toutes les 5 minutes, restauration contrôlée | Même exercice de sauvegarde logique, autre moteur. Conserver PostgreSQL ; si la fidélité MySQL est recherchée, ajouter une instance MySQL fictive et son scénario de dump/restauration dans un périmètre séparé. |
 | Restic vers S3, rétention 7 quotidiennes / 4 hebdomadaires / 12 mensuelles (p. 15–16) | Archives sur PVC puis export Windows ; aucun dépôt Restic, aucun stockage S3 ni rétention d'archives automatisée | Ajouter Restic pour les dumps SQL et un service S3 compatible de lab à sélectionner et versionner. Tester une restauration depuis un snapshot choisi. Un S3 local sur le même PC ne constitue pas une copie hors site. |
 | Velero, sauvegarde de ressources et restauration dans un autre namespace (p. 16–18) | Scripts de restauration PostgreSQL uniquement | Ajouter Velero et sa destination objet. Valider d'abord les ressources d'un namespace témoin, puis les données d'un volume compatible. Une restauration SQL seule ne valide pas Velero. |
 | ArgoCD, Projects, Applications, environnements et RBAC (p. 19–23) | Quatre Applications sur `main`, projet `default`, auto-sync/self-heal, `prune: false` ; scripts adaptés à HTTPS public le 19 octobre | Même protocole Git que la référence ; parcours modifié à tester. AppProjects, droits limités et configurations dev/staging restent des extensions possibles. |
-| Charts Helm personnalisés et valeurs par environnement (p. 24–26) | Manifests Kustomize, pas de chart applicatif | Ajouter un chart de démonstration et des valeurs dev/staging ; faire rendre ce chart par ArgoCD. Adapter le script de publication et son test avant de changer la source de l'Application existante. |
+| Charts Helm personnalisés et valeurs par environnement (p. 24–26) | Chart `charts/devops-demo`, valeurs locales, Application ArgoCD et scripts adaptés dans le dépôt | Migration préparée, non déployée et non testée. Des valeurs dev/staging distinctes restent à ajouter si retenues. |
 | Gestion du code et CI/CD (p. 26) | GitHub et pipeline PowerShell manuel : construire, tester, publier, pousser la configuration | GitOps est représenté ; aucun workflow CI hébergé dans le dépôt. Le PDF ne donne pas de pipeline complet réutilisable : définir séparément les étapes et l'accès du runner au registry local. |
 | Trivy dans le cluster et scans Harbor (p. 26) | Aucun manifest ni script Trivy | Ajouter Trivy Operator pour produire les rapports des images du cluster ; un scan CLI seul serait un premier exercice, pas l'équivalent du déploiement décrit. |
 | Falco et Falcosidekick (p. 26) | Absents des manifests | Vérifier la compatibilité avec le noyau Linux Docker/WSL2, puis installer et produire un événement de test inoffensif. L'installation d'un pod seul ne prouve pas la détection. |
@@ -90,10 +90,14 @@ du seul fait qu'ils apparaissent dans la référence Sobrus.
 
 ### 1. Accès et déploiement proches de la référence
 
-Rendre Docker et le cluster accessibles, refaire les contrôles existants et
-mesurer les ressources disponibles. Ajouter Helm, Traefik, cert-manager et un
-environnement de démonstration séparé avant toute transition de l'application.
-Conserver les données et les volumes actuels.
+Les fichiers Helm, Traefik et cert-manager sont désormais préparés : voir les
+guides [Helm](helm.md) et [HTTPS local](https-local.md). Ils ne sont pas encore
+publiés, déployés ou testés. Aucun environnement dev/staging supplémentaire
+n'a été créé. Le lab existant et ses données n'ont pas été modifiés pour ces ajouts.
+
+Lors de la phase de tests choisie par l'utilisateur, vérifier les ressources,
+publier les fichiers, déployer les contrôleurs avant l'application, puis observer
+la transition. Le script ne recrée pas le cluster et n'efface pas les volumes.
 
 Critères : chart rendu et contrôlé, Application ArgoCD saine, accès HTTPS local
 à travers Traefik avec vérification du certificat, changement de version puis

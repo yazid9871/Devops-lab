@@ -18,12 +18,12 @@ les procédures n'ont pas été rejouées à cette date.
 | Rubrique d'exploitation | Procédure locale disponible | Complément à implémenter et tester |
 | --- | --- | --- |
 | Registry | [Registry local](registry.md), publication ci-dessous | Authentification/TLS ; fonctions Harbor à examiner |
-| Accès web et certificats | [Tunnels locaux](acces-interfaces.md) | Traefik, Ingress et cert-manager avec autorité locale |
+| Accès web et certificats | [Traefik et cert-manager préparés](https-local.md), tunnel HTTPS local | Déploiement, validation HTTPS et observation du renouvellement à réaliser |
 | Stockage | Contrôle des PVC ci-dessous | Exercice Rook/Ceph séparé, selon les ressources |
 | Supervision | Diagnostic ci-dessous et [guide](supervision.md) | Collecte des nouveaux composants et test d'alerte de bout en bout |
 | Sauvegardes SQL | Sauvegarde et restauration PostgreSQL ci-dessous | Restic vers stockage objet, archive choisie ; exercice MySQL si retenu |
 | Sauvegarde Kubernetes | Pas encore de procédure Velero | Backup et restauration dans un namespace témoin distinct |
-| GitOps et environnements | Publication et rollback ci-dessous | Chart Helm, valeurs dev/staging, AppProjects et RBAC |
+| GitOps et environnements | Publication et rollback ci-dessous ; [chart Helm préparé](helm.md), non déployé | Valider la transition Helm ; valeurs dev/staging, AppProjects et RBAC restent à ajouter |
 | Sécurité | Pas encore de procédure Trivy/Falco | Rapports Trivy Operator et événement de test Falco |
 | Nettoyage et VPN | Pas de procédure implémentée | Identifier l'opérateur ; examiner un exercice VPN séparé |
 
@@ -60,6 +60,13 @@ Pour la soutenance : [déroulé de 10 minutes](presentation-10-minutes.md).
 
 Pour le premier déploiement sur un lab déjà préparé :
 
+L'application utilise désormais le chart `charts/devops-demo`. Les fichiers de
+cette évolution doivent être publiés sur GitHub avant de lancer le script.
+La transition Helm n'a pas encore été déployée ni testée : voir le [guide Helm](helm.md).
+Les contrôleurs Traefik et cert-manager ainsi que l'autorité locale doivent être
+préparés avant l'application, via `scripts/Deploy-Access.ps1`. L'installation
+complète le fait automatiquement. Aucune de ces nouvelles procédures n'a été exécutée.
+
 ```powershell
 .\scripts\Deploy-Demo.ps1
 ```
@@ -81,6 +88,8 @@ $deployCommit = git rev-parse HEAD
 **Attendu :** `PASS`, nouvelle version accessible et ArgoCD `Synced / Healthy`.
 Le script construit et teste l'image, la publie dans le registry local, puis pousse
 son tag dans Git. ArgoCD applique le changement ; cela peut prendre quelques minutes.
+Le commit de publication modifie `app/VERSION` et `charts/devops-demo/values.yaml`.
+Les autres composants restent gérés avec Kustomize.
 
 ## 2. Revenir à la version précédente
 
@@ -159,3 +168,41 @@ Après correction, relancer le test concerné : `Test-Deployment.ps1`,
 Une règle revenue à la normale se résout automatiquement. Un ancien Job échoué
 peut garder l'alerte de sauvegarde active tant que son historique est conservé.
 Les [diagnostics détaillés](supervision.md) donnent les commandes par alerte.
+
+## 5. Accès HTTPS et problème de certificat
+
+Ouvrir le tunnel depuis le projet :
+
+```powershell
+.\scripts\Open-Demo.ps1
+```
+
+Ouvrir `https://localhost:8443`. Pour approuver l'autorité locale, utiliser
+explicitement `scripts/Export-LabCA.ps1 -Trust` dans un second terminal, puis
+rouvrir le navigateur. Cela ajoute uniquement son certificat public au magasin
+de confiance de l'utilisateur Windows courant.
+
+Lors de la phase de tests ultérieure, tunnel ouvert :
+
+```powershell
+.\scripts\Test-Https.ps1
+```
+
+**Attendu :** validation du nom et de l'autorité, santé `ok`, version identique
+à `app/VERSION`. Résultat non encore obtenu : ces scripts sont préparés, non exécutés.
+
+Si l'accès échoue, relever l'état avant correction :
+
+```powershell
+kubectl --context kind-devops-lab -n demo describe ingress devops-demo
+kubectl --context kind-devops-lab -n demo describe certificate devops-demo-tls
+kubectl --context kind-devops-lab get clusterissuer devops-lab-ca
+kubectl --context kind-devops-lab -n traefik logs deployment/traefik --tail=50
+```
+
+Une connexion refusée indique d'abord un problème de tunnel ou de disponibilité.
+Une 404 oriente vers le routage ; une 503, vers le Service applicatif et ses pods.
+Un avertissement du navigateur demande de contrôler la confiance et le certificat
+présenté. Ne pas effacer l'autorité ou les Secrets pour contourner l'erreur.
+Le [guide HTTPS](https-local.md) précise les commandes, le renouvellement configuré,
+le retrait de la confiance Windows et les limites du lab.

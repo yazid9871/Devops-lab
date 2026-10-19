@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["replicaCount", "image", "service", "resources", "ingress"],
+  "properties": {
+    "replicaCount": {"type": "integer", "minimum": 1},
+    "image": {
+      "type": "object",
+      "required": ["repository", "tag", "pullPolicy"],
+      "properties": {
+        "repository": {"const": "localhost:5001/devops-demo"},
+        "tag": {"type": "string", "pattern": "^v[0-9]+$"},
+        "pullPolicy": {"enum": ["IfNotPresent", "Always", "Never"]}
+      }
+    },
+    "service": {
+      "type": "object",
+      "required": ["port"],
+      "properties": {"port": {"type": "integer", "minimum": 1, "maximum": 65535}}
+    },
+    "resources": {"type": "object"},
+    "ingress": {
+      "type": "object",
+      "required": ["enabled", "className", "host", "tls"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "className": {"const": "traefik-lab"},
+        "host": {"const": "localhost"},
+        "tls": {
+          "type": "object",
+          "required": ["secretName", "issuerName", "duration", "renewBefore"],
+          "properties": {
+            "secretName": {"const": "devops-demo-tls"},
+            "issuerName": {"const": "devops-lab-ca"},
+            "duration": {"type": "string", "pattern": "^[1-9][0-9]*h$"},
+            "renewBefore": {"type": "string", "pattern": "^[1-9][0-9]*h$"}
+          }
+        }
+      }
+    }
+  }
+}

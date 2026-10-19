@@ -36,6 +36,10 @@ Cluster kind local
   argocd      : suivi de la configuration Git
 ```
 
+Évolution préparée dans les fichiers, encore à déployer et tester : chart Helm
+applicatif, Traefik pour l'Ingress HTTPS et cert-manager pour l'autorité locale
+et le certificat `localhost`. Voir le [guide HTTPS](https-local.md).
+
 L'application web n'utilise pas encore Redis. PostgreSQL et Redis ont leurs
 propres tests ; ne pas présenter de connexion applicative qui n'a pas été démontrée.
 
@@ -66,6 +70,10 @@ Le cahier des charges « Plateforme de référence locale » autorise Kustomize 
 une sauvegarde par CronJob pg_dump : ces choix satisfont les alternatives prévues.
 La présentation dure ici 10 minutes selon la précision donnée, au lieu des
 20 minutes du document initial.
+
+Une [migration de l'application vers Helm](helm.md) et un [accès HTTPS avec
+Traefik/cert-manager](https-local.md) sont préparés dans les fichiers, mais n'ont
+pas été déployés ni testés : ne pas les présenter comme validés.
 
 La documentation Sobrus présente aussi Helm, Traefik, cert-manager, Rook/Ceph,
 Velero/Restic, Trivy, Falco et un cleanup operator. Leur intégration au lab reste

@@ -4,6 +4,12 @@ param()
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'Lab-Repository.ps1')
+. (Join-Path $PSScriptRoot 'Lab-DemoChart.ps1')
+$chart = Get-LabDemoChart -ProjectRoot $projectRoot
+if ($chart.IngressEnabled) {
+    & kubectl --context kind-devops-lab wait --for=condition=Ready clusterissuer/devops-lab-ca --timeout=120s
+    if ($LASTEXITCODE -ne 0) { throw 'The local CA is not ready. Run scripts/Deploy-Access.ps1 first.' }
+}
 Set-LabApplication -ManifestPath (Join-Path $projectRoot 'infra/argocd/demo-application.yaml')
 if ($LASTEXITCODE -ne 0) { throw 'Unable to create the ArgoCD Application.' }
 $ready = $false
@@ -24,7 +30,12 @@ if (-not $ready) {
 }
 & kubectl --context kind-devops-lab -n demo rollout status deployment/devops-demo --timeout=120s
 if ($LASTEXITCODE -ne 0) { throw 'The application deployment is not ready.' }
+if ($chart.IngressEnabled) {
+    & kubectl --context kind-devops-lab -n demo wait --for=condition=Ready certificate/devops-demo-tls --timeout=180s
+    if ($LASTEXITCODE -ne 0) { throw 'The application TLS certificate is not ready. Inspect its Certificate and cert-manager logs.' }
+}
 & kubectl --context kind-devops-lab -n demo get pods
 if ($LASTEXITCODE -ne 0) { throw 'Unable to list demo pods.' }
 Write-Host 'ArgoCD: Synced / Healthy'
-Write-Host 'Next: kubectl --context kind-devops-lab -n demo port-forward svc/devops-demo 8081:80'
+if ($chart.IngressEnabled) { Write-Host 'Next: scripts/Open-Demo.ps1 -> https://localhost:8443' }
+else { Write-Host 'Ingress is disabled in the chart. Use the direct Service tunnel documented in docs/acces-interfaces.md.' }

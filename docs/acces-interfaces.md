@@ -3,7 +3,23 @@
 Chaque commande ci-dessous garde son terminal occupé : **utiliser un terminal
 séparé par interface** et le laisser ouvert. `Ctrl+C` ferme le tunnel.
 
-**Application :**
+**Application en HTTPS, via Traefik (évolution à déployer et tester) :**
+
+```powershell
+.\scripts\Open-Demo.ps1
+```
+
+Ouvrir [localhost:8443](https://localhost:8443). Pour approuver explicitement
+l'autorité locale pour l'utilisateur Windows courant, dans un autre terminal :
+
+```powershell
+.\scripts\Export-LabCA.ps1 -Trust
+```
+
+Fermer et rouvrir le navigateur. L'installation ne modifie pas la confiance
+Windows automatiquement. Voir le [guide HTTPS](https-local.md) pour le détail.
+
+**Application HTTP directe, pour le diagnostic :**
 
 ```powershell
 kubectl --context kind-devops-lab -n demo port-forward svc/devops-demo 8081:80

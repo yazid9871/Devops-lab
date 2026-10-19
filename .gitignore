@@ -16,3 +16,6 @@ backups/
 *.dump
 *.backup
 *.log
+
+# Temporary document previews
+tmp/

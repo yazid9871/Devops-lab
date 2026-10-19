@@ -1,0 +1,41 @@
+# Values for the pinned Traefik chart in versions.psd1.
+deployment:
+  replicas: 1
+ingressClass:
+  enabled: true
+  isDefaultClass: false
+  name: traefik-lab
+providers:
+  kubernetesCRD:
+    enabled: false
+  kubernetesGateway:
+    enabled: false
+  kubernetesIngress:
+    enabled: true
+    ingressClass: traefik-lab
+    namespaces:
+      - demo
+    publishedService:
+      enabled: false
+    ingressEndpoint:
+      ip: 127.0.0.1
+gateway:
+  enabled: false
+gatewayClass:
+  enabled: false
+service:
+  spec:
+    type: ClusterIP
+api:
+  dashboard: false
+  insecure: false
+ingressRoute:
+  dashboard:
+    enabled: false
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi

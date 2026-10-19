@@ -8,7 +8,11 @@ spec:
   source:
     repoURL: https://github.com/OWNER/REPOSITORY.git
     targetRevision: main
-    path: k8s/demo
+    path: charts/devops-demo
+    helm:
+      releaseName: devops-demo
+      valueFiles:
+        - values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: demo

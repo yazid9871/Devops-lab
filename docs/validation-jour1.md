@@ -1,5 +1,8 @@
 # Vérifications du jour 1
 
+Ce compte rendu historique concerne Kustomize. La migration Helm préparée
+ultérieurement est décrite dans [le guide Helm](helm.md) et reste à tester.
+
 Tests réalisés le 16 octobre 2026 sur le cluster local `devops-lab`,
 avec Windows PowerShell, Docker Desktop et le registry local.
 Ce document décrit les résultats observés ; il ne valide pas encore

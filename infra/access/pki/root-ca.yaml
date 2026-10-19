@@ -1,0 +1,22 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: devops-lab-root-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: Devops Lab Local Root CA
+  secretName: devops-lab-root-ca
+  duration: 87600h
+  renewBefore: 720h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Never
+  usages:
+    - cert sign
+    - crl sign
+    - digital signature
+  issuerRef:
+    name: devops-lab-selfsigned
+    kind: ClusterIssuer

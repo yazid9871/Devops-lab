@@ -3,16 +3,20 @@
 param()
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'Lab-DemoChart.ps1')
 function Invoke-Checked {
     param([string]$Tool, [string[]]$Arguments)
     & $Tool @Arguments
     if ($LASTEXITCODE -ne 0) { throw "Command failed: $Tool $($Arguments -join ' ')" }
 }
-foreach ($tool in @('docker', 'kind', 'kubectl')) {
+foreach ($tool in @('docker', 'kind', 'kubectl', 'helm')) {
     if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
         throw "$tool is missing from PATH. Install it and open a new PowerShell."
     }
 }
+$chart = Get-LabDemoChart -ProjectRoot $projectRoot
+Invoke-Checked helm @('lint', $chart.ChartPath, '--strict')
+Invoke-Checked helm @('template', 'devops-demo', $chart.ChartPath, '--namespace', 'demo') | Out-Null
 $previousDockerContext = $env:DOCKER_CONTEXT
 $env:DOCKER_CONTEXT = 'desktop-linux'
 try {
@@ -38,11 +42,8 @@ try {
     Invoke-Checked kubectl @('--context', 'kind-devops-lab', '-n', 'argocd', 'rollout', 'status', 'statefulset/argocd-application-controller', '--timeout=300s')
 
     Write-Host '[4/4] Demo image'
-    $version = [IO.File]::ReadAllText((Join-Path $projectRoot 'app/VERSION')).Trim()
-    if ($version -notmatch '^\d+$') { throw 'Expected a numeric app/VERSION.' }
-    $manifest = [IO.File]::ReadAllText((Join-Path $projectRoot 'k8s/demo/kustomization.yaml'))
-    if ($manifest -notmatch "(?m)^    newTag: v$version\r?`$") { throw 'App version and desired image tag must match.' }
-    $image = "localhost:5001/devops-demo:v$version"
+    $version = $chart.Version
+    $image = $chart.Image
     $tags = @()
     try { $tags = (Invoke-RestMethod -Uri 'http://127.0.0.1:5001/v2/devops-demo/tags/list' -TimeoutSec 10).tags }
     catch { if ([int]$_.Exception.Response.StatusCode -ne 404) { throw } }
@@ -59,7 +60,6 @@ try {
     foreach ($nodeName in $nodes) {
         Invoke-Checked docker @('exec', $nodeName, 'crictl', 'pull', $image)
     }
-    Invoke-Checked kubectl @('--context', 'kind-devops-lab', 'apply', '--dry-run=client', '-k', (Join-Path $projectRoot 'k8s/demo'))
     Write-Host 'Infrastructure ready. Follow the README to connect GitHub and deploy the services.'
 } finally {
     $env:DOCKER_CONTEXT = $previousDockerContext

@@ -1,0 +1,24 @@
+# Le script de publication met a jour image.tag et app/VERSION ensemble.
+replicaCount: 1
+image:
+  repository: localhost:5001/devops-demo
+  tag: "v1"
+  pullPolicy: IfNotPresent
+service:
+  port: 80
+ingress:
+  enabled: true
+  className: traefik-lab
+  host: localhost
+  tls:
+    secretName: devops-demo-tls
+    issuerName: devops-lab-ca
+    duration: 2160h
+    renewBefore: 360h
+resources:
+  requests:
+    cpu: 50m
+    memory: 32Mi
+  limits:
+    cpu: 250m
+    memory: 128Mi
