@@ -77,6 +77,12 @@ foreach ($row in $table.result) {
     if ($row.metric.readiness -notmatch '^\d+/\d+$' -or $row.metric.restarts -notmatch '^\d+$') {
         throw 'Pod readiness or restart count is missing.'
     }
+    if ($row.metric.age -notmatch '^\d+$' -or -not $row.metric.status) {
+        throw 'Pod age or display status is missing.'
+    }
+    if ($row.metric.phase -eq 'Succeeded' -and $row.metric.status -ne 'Completed') {
+        throw 'A successful pod must be displayed as Completed.'
+    }
 }
 if ($podQuery.Contains('${namespace:regex}') -or $podQuery.Contains('${phase:regex}')) {
     throw 'The inventory table must show all namespaces and all states regardless of dashboard filters.'
@@ -85,7 +91,7 @@ foreach ($row in $table.result) {
     $expectedOrder = if ($row.metric.namespace -eq 'demo') { '0' } else { '1' }
     if ($row.metric.pod_order -ne $expectedOrder) { throw 'Demo-first sort priority is incorrect.' }
 }
-Write-Host "PASS: pod table matches all $($actual.Count) Kubernetes pods in all states; demo-first priority, readiness and restarts checked."
+Write-Host "PASS: pod table matches all $($actual.Count) Kubernetes pods; READY, STATUS, RESTARTS, AGE and demo-first priority checked."
 Write-Host "PASS: $($expectedJobs.Count) required scrape targets UP, database metrics healthy, scheduled backup visible, 4 healthy rules, Grafana and Alertmanager ready."
 Write-Host 'PASS: alert failure scenarios tested with simulated metrics (no live outage injected).'
 $alerts | Select-Object name, state, health | Format-Table

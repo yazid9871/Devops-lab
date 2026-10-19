@@ -3,6 +3,10 @@
 ## Sauvegarde automatique
 
 Le CronJob `postgres-backup` tourne toutes les cinq minutes, en UTC.
+Avant de créer une archive, il vérifie la disponibilité de PostgreSQL avec
+`pg_isready` : dix tentatives maximum, espacées de quatre secondes, avec un
+timeout de connexion de deux secondes. Cela absorbe un retard de DNS ou de
+démarrage. Une indisponibilité persistante fait échouer le Job et reste alertée.
 Il utilise `pg_dump -Fc` pour sauvegarder toute la base `lab` dans une archive :
 schéma, données et objets de cette base. Un fichier SHA-256 accompagne chaque archive.
 

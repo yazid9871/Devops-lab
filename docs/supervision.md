@@ -48,6 +48,17 @@ si le test signale qu'aucun succès n'est encore visible.
 
 ## Ouvrir les interfaces
 
+La table **Pods Kubernetes** affiche `NAMESPACE`, `NAME`, `READY`, `STATUS`,
+`RESTARTS` et `AGE`, avec les pods `demo` en premier. Elle inclut les pods
+terminés : `Succeeded` est affiché `Completed` et `Failed` est affiché `Error`.
+Une raison d'attente comme `CrashLoopBackOff` est affichée lorsqu'elle est
+disponible. L'âge provient de la date de création du pod. La collecte peut avoir
+du retard ; les cas complexes multi-conteneurs peuvent différer de `kubectl`.
+
+Un ancien Job échoué reste visible même si les sauvegardes suivantes réussissent.
+Conserver ses logs avant tout nettoyage de son historique ; les alertes ne sont
+pas masquées par la réussite d'un autre Job.
+
 Garder ce terminal ouvert :
 
 ```powershell

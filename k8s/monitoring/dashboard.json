@@ -2,7 +2,7 @@
   "uid": "devops-lab",
   "title": "DevOps Lab",
   "schemaVersion": 39,
-  "version": 6,
+  "version": 7,
   "timezone": "browser",
   "refresh": "15s",
   "time": {
@@ -435,8 +435,8 @@
     },
     {
       "id": 10,
-      "title": "Liste des pods",
-      "description": "Tous les pods presents dans Kubernetes, tous namespaces et tous etats. Les pods demo apparaissent en premier. Le filtre des compteurs ne masque aucune ligne du tableau.",
+      "title": "Pods Kubernetes",
+      "description": "Inventaire de tous les pods : NAMESPACE, NAME, READY, STATUS, RESTARTS et AGE. Demo en premier. Completed et Error correspondent aux phases Succeeded et Failed ; les raisons d attente sont affichees lorsqu elles sont disponibles. Donnees Prometheus, avec un delai de collecte ; les cas complexes multi-conteneurs peuvent differer de kubectl.",
       "type": "table",
       "datasource": {
         "type": "prometheus",
@@ -450,7 +450,7 @@
       },
       "targets": [
         {
-          "expr": "label_replace(label_replace(((label_join(((((max by (namespace,pod,phase) (kube_pod_status_phase{namespace=~\".*\",phase=~\".*\"} == 1)) * on (namespace,pod) group_left(ready) count_values by (namespace,pod) (\"ready\", (sum by (namespace,pod) (kube_pod_container_status_ready{namespace=~\".*\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\".*\"})))) * on (namespace,pod) group_left(containers) count_values by (namespace,pod) (\"containers\", (count by (namespace,pod) (kube_pod_container_info{namespace=~\".*\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\".*\"})))) * on (namespace,pod) group_left(restarts) count_values by (namespace,pod) (\"restarts\", (sum by (namespace,pod) (kube_pod_container_status_restarts_total{namespace=~\".*\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\".*\"})))), \"readiness\", \"/\", \"ready\", \"containers\")) and on (namespace,pod) (timestamp(kube_pod_info{namespace=~\".*\"}) > time() - 60)), \"pod_order\", \"1\", \"namespace\", \".*\"), \"pod_order\", \"0\", \"namespace\", \"demo\")",
+          "expr": "(label_replace(label_replace(((label_join(((((max by (namespace,pod,phase) (kube_pod_status_phase{namespace=~\".*\",phase=~\".*\"} == 1)) * on (namespace,pod) group_left(ready) count_values by (namespace,pod) (\"ready\", (sum by (namespace,pod) (kube_pod_container_status_ready{namespace=~\".*\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\".*\"})))) * on (namespace,pod) group_left(containers) count_values by (namespace,pod) (\"containers\", (count by (namespace,pod) (kube_pod_container_info{namespace=~\".*\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\".*\"})))) * on (namespace,pod) group_left(restarts) count_values by (namespace,pod) (\"restarts\", (sum by (namespace,pod) (kube_pod_container_status_restarts_total{namespace=~\".*\"})) or on (namespace,pod) (0 * max by (namespace,pod) (kube_pod_info{namespace=~\".*\"})))), \"readiness\", \"/\", \"ready\", \"containers\")) and on (namespace,pod) (timestamp(kube_pod_info{namespace=~\".*\"}) > time() - 60)), \"pod_order\", \"1\", \"namespace\", \".*\"), \"pod_order\", \"0\", \"namespace\", \"demo\")) * on (namespace,pod) group_left(status) (max by (namespace,pod,status) (label_replace(topk by (namespace,pod) (1, max by (namespace,pod,reason) (kube_pod_container_status_waiting_reason == 1)), \"status\", \"$1\", \"reason\", \"(.*)\") or on (namespace,pod) label_replace(label_replace(label_replace(max by (namespace,pod,phase) (kube_pod_status_phase == 1), \"status\", \"$1\", \"phase\", \"(.*)\"), \"status\", \"Completed\", \"phase\", \"Succeeded\"), \"status\", \"Error\", \"phase\", \"Failed\"))) * on (namespace,pod) group_left(age) (count_values by (namespace,pod) (\"age\", floor(clamp_min(time() - max by (namespace,pod) (kube_pod_created), 0))))",
           "refId": "A",
           "instant": true,
           "format": "time_series"
@@ -463,7 +463,52 @@
             "filterable": true
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "AGE"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "RESTARTS"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "NAME"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 550
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "showHeader": true,
@@ -478,6 +523,22 @@
           "id": "labelsToFields",
           "options": {
             "mode": "columns"
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "targetField": "age",
+                "destinationType": "number"
+              },
+              {
+                "targetField": "restarts",
+                "destinationType": "number"
+              }
+            ],
+            "fields": {}
           }
         },
         {
@@ -508,21 +569,24 @@
               "ready": true,
               "containers": true,
               "__name__": true,
-              "pod_order": true
+              "pod_order": true,
+              "phase": true
             },
             "indexByName": {
               "namespace": 0,
               "pod": 1,
-              "phase": 2,
-              "readiness": 3,
-              "restarts": 4
+              "readiness": 2,
+              "status": 3,
+              "restarts": 4,
+              "age": 5
             },
             "renameByName": {
-              "namespace": "Namespace",
-              "pod": "Nom du pod",
-              "phase": "Etat",
-              "readiness": "Conteneurs prets",
-              "restarts": "Redemarrages"
+              "namespace": "NAMESPACE",
+              "pod": "NAME",
+              "readiness": "READY",
+              "status": "STATUS",
+              "restarts": "RESTARTS",
+              "age": "AGE"
             }
           }
         }
