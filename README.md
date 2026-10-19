@@ -160,3 +160,62 @@ Ce retour arrière concerne l’application, pas les données PostgreSQL.
 
 Si le terminal a été fermé, retrouver le commit `Deploy demo v...` avec
 `git log --oneline` et remplacer `$deployCommit` par son identifiant.
+
+## 9. Vérifier, sauvegarder et restaurer PostgreSQL
+
+Lab installé et Docker démarré, ouvrir PowerShell dans le dossier du projet :
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+.\scripts\Test-Postgres.ps1
+kubectl --context kind-devops-lab -n data get pods,jobs,pvc
+```
+
+Le test vérifie la connexion, l’authentification, la lecture/écriture et le volume.
+Attendu : **PASS**, `postgres-0` en **Running**, volume **Bound**.
+PostgreSQL sert aux exercices de données ; l’application web n’y est pas connectée.
+
+### Sauvegarder maintenant
+
+```powershell
+.\scripts\Backup-Postgres.ps1
+```
+
+Le script lance un Job qui utilise `pg_dump`, conserve l’archive dans le volume
+`postgres-backups`, puis exporte une copie dans le dossier Windows `backups/`.
+Il contrôle l’intégrité de cette copie avec **SHA256**.
+Attendu : **PASS: backup and local SHA256 verification**.
+
+Une sauvegarde est aussi planifiée toutes les **5 minutes** par le CronJob.
+Les archives restent dans le volume après la fin du pod. La copie vers Windows
+est effectuée par le script manuel, pas par chaque sauvegarde planifiée.
+
+### Tester la restauration dans une nouvelle instance
+
+```powershell
+.\scripts\Test-Restore.ps1
+```
+
+Le test ajoute une ligne fictive à la source et crée **une nouvelle sauvegarde**.
+Il prépare une instance PostgreSQL séparée avec un nouveau pod, un Service et
+un volume vide. Un Job utilise `pg_restore`, puis le test compare les données
+de `demo_items` et le schéma contrôlé avec les références de la source.
+Il ne sélectionne pas l’archive d’une sauvegarde manuelle précédente.
+
+Attendu : **RESTORE TEST: PASS** et **Source database kept running: True**.
+La source reste en place, sans bascule vers la cible restaurée.
+
+Lire le résultat :
+
+- `database.dump: OK` : l’archive a passé le contrôle SHA256.
+- `TARGET_EMPTY=1` : aucune table utilisateur n’était présente dans la cible.
+- `Rows verified` : nombre de lignes vérifiées dans `demo_items`.
+- `Restore` : durée de `pg_restore` seul.
+- `Target creation and checks` : création de la cible, restauration et contrôles,
+  **hors sauvegarde**.
+- `Report` : chemin du rapport enregistré dans `backups/*-report.json`.
+
+Chaque relance ajoute une ligne de test et conserve une nouvelle instance avec
+son volume. Les archives et les cibles ne sont pas nettoyées automatiquement.
+Les volumes et les copies Windows restent sur le même PC : ils ne protègent
+pas contre sa perte. Si un test échoue, lire les logs avant de poursuivre.
