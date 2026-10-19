@@ -53,7 +53,12 @@ if ($grafana.database -ne 'ok') { throw 'Grafana database is not healthy.' }
 $am = Invoke-MonitorKubectl get --raw /api/v1/namespaces/monitoring/services/http:alertmanager:web/proxy/-/ready
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $dashboard = Get-Content (Join-Path $projectRoot 'k8s/monitoring/dashboard.json') -Raw | ConvertFrom-Json
-$podQuery = ($dashboard.panels | Where-Object { $_.id -eq 10 }).targets[0].expr
+$podPanel = $dashboard.panels | Where-Object { $_.id -eq 10 }
+# One table frame is required: separate time-series frames can display only one pod.
+if ($podPanel.targets[0].format -ne 'table' -or @($podPanel.transformations | Where-Object id -eq 'labelsToFields').Count -gt 0) {
+    throw 'Pod inventory must use the Prometheus table format directly.'
+}
+$podQuery = $podPanel.targets[0].expr
 if (-not $podQuery) { throw 'Pod table query is missing from the dashboard.' }
 $deadline = (Get-Date).AddSeconds(90)
 do {
