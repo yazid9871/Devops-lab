@@ -42,11 +42,19 @@ try {
         $tlsOptions += '--ssl-revoke-best-effort'
     }
     foreach ($endpoint in @('healthz','version')) {
-        $raw = & curl.exe @tlsOptions --noproxy '*' --resolve "localhost:${Port}:127.0.0.1" --cacert $caPath --connect-timeout 5 --max-time 15 --fail --silent --show-error "https://localhost:$Port/$endpoint"
-        if ($LASTEXITCODE -ne 0) { throw 'HTTPS validation failed. Keep Open-Demo.ps1 running, and inspect the Certificate and Traefik logs. TLS verification was not disabled.' }
-        $response = $raw | ConvertFrom-Json
-        if ($endpoint -eq 'healthz' -and $response.status -ne 'ok') { throw 'HTTPS health endpoint is not healthy.' }
-        if ($endpoint -eq 'version' -and $response.version -ne $chart.Version) { throw 'HTTPS application version does not match app/VERSION.' }
+        $versionDeadline = (Get-Date).AddSeconds(30)
+        do {
+            $raw = & curl.exe @tlsOptions --noproxy '*' --resolve "localhost:${Port}:127.0.0.1" --cacert $caPath --connect-timeout 5 --max-time 15 --fail --silent --show-error "https://localhost:$Port/$endpoint"
+            if ($LASTEXITCODE -ne 0) { throw 'HTTPS validation failed. Keep Open-Demo.ps1 running, and inspect the Certificate and Traefik logs. TLS verification was not disabled.' }
+            $response = $raw | ConvertFrom-Json
+            if ($endpoint -eq 'healthz' -and $response.status -ne 'ok') { throw 'HTTPS health endpoint is not healthy.' }
+            if ($endpoint -ne 'version' -or $response.version -eq $chart.Version) { break }
+            if ((Get-Date) -ge $versionDeadline) {
+                throw "HTTPS application version mismatch: expected $($chart.Version), received $($response.version)."
+            }
+            Write-Host "Waiting for Traefik to serve version $($chart.Version) (received $($response.version))..."
+            Start-Sleep -Seconds 2
+        } while ($true)
     }
     Write-Host "PASS: HTTPS through Traefik, local CA and hostname verified, application version $($chart.Version), health ok."
 } finally {

@@ -26,5 +26,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect the deployed image.' }
 $deployment = $raw | ConvertFrom-Json
 $web = @($deployment.spec.template.spec.containers | Where-Object { $_.name -eq 'web' })
 if ($web.Count -ne 1 -or $web[0].image -ne $chart.Image) { throw 'The deployed image does not match the Helm values.' }
+& kubectl --context kind-devops-lab -n demo rollout status deployment/devops-demo --timeout=300s
+if ($LASTEXITCODE -ne 0) { throw 'The application rollout did not complete.' }
 & (Join-Path $PSScriptRoot 'Test-Https.ps1') -StartTunnel
 Write-Host "PASS: Git revision $target, Synced / Healthy, HTTPS through Traefik, version $expected"
