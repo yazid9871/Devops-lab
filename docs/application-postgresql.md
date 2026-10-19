@@ -4,6 +4,8 @@ L'application propose une liste de tâches : ajouter une tâche, afficher les
 100 dernières et cocher ou décocher une tâche. Les écritures sont validées en
 base avant la réponse HTTP ; aucun stockage dans le pod web n'est utilisé.
 
+Version v3 déployée et contrôlée : voir le [compte rendu de validation](validation-application-postgresql.md).
+
 ```text
 Navigateur -> Traefik -> Service devops-demo -> application Python
                                               |

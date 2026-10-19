@@ -14,8 +14,9 @@ récupéré quatre lignes en 12,96 secondes, hors sauvegarde.
 
 La sauvegarde attend maintenant PostgreSQL avant `pg_dump`. Les contrôles de
 reprise et une sauvegarde réelle avec SHA-256 ont réussi. Grafana affiche tous
-les pods dans un tableau unique, vérifié dans le navigateur. Le renouvellement
-réel des certificats et le parcours HTTPS complet restent à vérifier séparément.
+les pods dans un tableau unique, vérifié dans le navigateur. L'API v3 a été
+vérifiée via Traefik en HTTPS avec l'autorité locale et le nom localhost validés.
+La confiance du navigateur et le renouvellement réel restent des contrôles distincts.
 
 ## 1. Vue d'ensemble
 
