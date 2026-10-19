@@ -6,11 +6,16 @@ Document du 19 octobre 2026, établi à partir des fichiers du projet.
 seul nœud et des données fictives. GitHub et les registres de téléchargement
 restent des dépendances externes. L'exécution des services du lab est locale.
 
-**État :** le socle application/ArgoCD/PostgreSQL/Redis/supervision possède des
-validations enregistrées. La migration Helm, Traefik et cert-manager est préparée
-dans les fichiers locaux, mais n'a pas encore été publiée, déployée ou testée.
-Cette architecture décrit ces fichiers, pas un nouvel inventaire du cluster en
-fonctionnement. Aucun test ni déploiement n'a été lancé pour rédiger ce document.
+**État au 19 octobre 2026 :** Helm, Traefik et cert-manager sont publiés et
+déployés ; l'application est synchronisée et saine dans ArgoCD et son certificat
+est prêt. L'installation contrôlée sur ce PC a duré 5,86 minutes avec prérequis
+et certaines images déjà présents. Une restauration dans une instance vide a
+récupéré quatre lignes en 12,96 secondes, hors sauvegarde.
+
+La sauvegarde attend maintenant PostgreSQL avant `pg_dump`. Les contrôles de
+reprise et une sauvegarde réelle avec SHA-256 ont réussi. Grafana affiche tous
+les pods dans un tableau unique, vérifié dans le navigateur. Le renouvellement
+réel des certificats et le parcours HTTPS complet restent à vérifier séparément.
 
 ## 1. Vue d'ensemble
 
@@ -19,8 +24,7 @@ fonctionnement. Aucun test ni déploiement n'a été lancé pour rédiger ce doc
 ![Architecture locale simplifiée](diagrams/architecture-locale.png)
 
 [Version SVG modifiable](diagrams/architecture-locale.svg).
-Les points orange signalent les ajouts encore à déployer. Le schéma conserve
-un seul PC et un seul cluster ; il ne représente pas les régions cloud ou les
+Le schéma décrit les composants maintenant déployés. Il conserve un seul PC et un seul cluster ; il ne représente pas les régions cloud ou les
 environnements de production de la référence Sobrus.
 
 ### Vue technique complémentaire
@@ -43,7 +47,7 @@ flowchart TB
         WEB["demo : application Python, Service et Ingress"]
         PG["data : PostgreSQL + PVC"]
         REDIS["data : Redis + exporteur, sans persistance"]
-        BACKUP["data : CronJob de sauvegarde + PVC distinct"]
+        BACKUP["data : CronJob toutes les 5 min + attente PostgreSQL + PVC"]
         RESTORE["data : instances de restauration séparées"]
         MON["monitoring : Prometheus, Grafana, Alertmanager, kube-state-metrics"]
       end
@@ -65,13 +69,10 @@ flowchart TB
   MON -->|"collecte des métriques"| PG
   MON -->|"collecte des métriques"| REDIS
   MON -->|"état des objets Kubernetes"| API
-  classDef prepared fill:#fff4db,stroke:#bd7b13,color:#392800
-  class TR,CM,WEB prepared
 ```
 
-Les blocs orange concernent les ajouts et la migration de configuration encore
-à déployer. Les flèches résument les échanges ; la partie sauvegarde/restauration
-est détaillée plus bas.
+Les flèches résument les échanges ; la partie sauvegarde/restauration est
+détaillée plus bas. Les composants sont déployés dans le même cluster local.
 
 **L'application Python ne se connecte actuellement ni à PostgreSQL ni à Redis.**
 Ces deux services servent à des exercices d'exploitation indépendants. ArgoCD
@@ -99,11 +100,11 @@ Cette organisation n'offre aucune haute disponibilité entre machines.
 | Namespace | Ressources principales | Rôle et mode de gestion |
 | --- | --- | --- |
 | `argocd` | Server, repo-server, application-controller, ApplicationSet controller, Dex, notifications, Redis interne | ArgoCD est installé à partir du manifest versionné du dépôt ; les quatre Applications sont créées par les scripts |
-| `demo` | Deployment et Service `devops-demo`, Namespace, Ingress `devops-demo`, Certificate `devops-demo-tls` | Application sans état ; chart Helm rendu par ArgoCD ; Ingress et Certificate encore à déployer |
+| `demo` | Deployment et Service `devops-demo`, Namespace, Ingress `devops-demo`, Certificate `devops-demo-tls` | Application sans état ; chart Helm rendu par ArgoCD ; Ingress et Certificate déployés |
 | `data` | StatefulSet `postgres`, Deployment `redis`, Deployment `postgres-exporter`, CronJob `postgres-backup`, PVC et cibles de restauration | PostgreSQL et Redis via ArgoCD/Kustomize ; cibles de restauration créées par script |
 | `monitoring` | Prometheus, Grafana, Alertmanager, kube-state-metrics, ConfigMaps, PVC | Application ArgoCD/Kustomize `monitoring-lab` |
-| `traefik` | Deployment, Service `traefik`, RBAC et IngressClass `traefik-lab` de portée cluster | Release Helm installée par `Deploy-Access.ps1` ; préparation non déployée |
-| `cert-manager` | Contrôleur, webhook, cainjector, Certificate et Secret de l'autorité racine | Release Helm et bootstrap PKI par `Deploy-Access.ps1` ; préparation non déployée |
+| `traefik` | Deployment, Service `traefik`, RBAC et IngressClass `traefik-lab` de portée cluster | Release Helm installée par `Deploy-Access.ps1` ; déployée et vérifiée |
+| `cert-manager` | Contrôleur, webhook, cainjector, Certificate et Secret de l'autorité racine | Release Helm et bootstrap PKI par `Deploy-Access.ps1` ; déployée et vérifiée |
 | `kube-system` / `local-path-storage` | DNS, réseau, composants Kubernetes et provisionneur de volumes | Socle créé avec kind |
 
 L'exporteur PostgreSQL est dans `data`, mais son manifest est dans
@@ -192,7 +193,7 @@ connecté au même réseau Docker que le nœud kind.
 sans authentification. Les images sont dans le volume Docker nommé
 `devops-lab-registry-data`.
 
-### HTTPS de l'application — configuration préparée
+### HTTPS de l'application — composants déployés
 
 ```mermaid
 flowchart LR
@@ -220,7 +221,7 @@ L'Ingress utilise uniquement l'entrée `websecure`. Il n'y a pas de redirection
 HTTP automatique configurée. Traefik n'est pas exposé par un LoadBalancer cloud
 ou un NodePort ; son Service est un `ClusterIP`. Le tunnel doit rester ouvert.
 
-La PKI préparée suit cette chaîne :
+La PKI déployée suit cette chaîne :
 
 1. `devops-lab-selfsigned` crée une racine autosignée.
 2. Le Certificate racine et son Secret sont dans `cert-manager`.
@@ -278,6 +279,7 @@ volumes `emptyDir` sont temporaires : il s'agit d'un cache, pas d'une base sauve
 ```mermaid
 flowchart LR
   CRON["CronJob postgres-backup<br/>toutes les 5 minutes / UTC"]
+  WAIT["Attente PostgreSQL<br/>pg_isready : 10 tentatives maximum"]
   JOB["Pod de sauvegarde<br/>pg_dump -Fc"]
   SRC["PostgreSQL source<br/>base lab"]
   ARCH["PVC postgres-backups<br/>archive + SHA-256 + marqueur completed"]
@@ -285,13 +287,18 @@ flowchart LR
   RJ["Job de restauration<br/>pg_restore"]
   DST["Nouvelle instance PostgreSQL<br/>nouveau PVC de 1 Gi"]
   CHECK["Comparaison des lignes,<br/>empreinte des données et schéma"]
-  CRON --> JOB
+  CRON --> WAIT --> JOB
   SRC -->|"lecture cohérente par pg_dump"| JOB
   JOB --> ARCH
   ARCH -->|"copie manuelle et contrôle SHA-256"| WIN
   ARCH --> RJ --> DST --> CHECK
   SRC -->|"empreintes de référence"| CHECK
 ```
+
+Avant de créer le dossier de sauvegarde, `pg_isready` vérifie la disponibilité
+de PostgreSQL : dix tentatives maximum, timeout de deux secondes et pauses de
+quatre secondes. Une indisponibilité persistante provoque un échec visible et
+alerté. Cette attente absorbe notamment un retard de résolution DNS au démarrage.
 
 Le CronJob utilise `concurrencyPolicy: Forbid`, pour ne pas empiler ses propres
 exécutions planifiées. L'archive est d'abord écrite en `.partial`, contrôlée par
@@ -351,8 +358,10 @@ période de 15 secondes. Grafana interroge Prometheus ; ce n'est pas Grafana qui
 collecte directement les métriques PostgreSQL ou Redis.
 
 Le dashboard `devops-lab` montre l'inventaire de tous les pods, avec `demo` en
-premier, et les états, conteneurs prêts et redémarrages. Les nouveaux pods
-Traefik/cert-manager seront visibles via cet inventaire une fois déployés ;
+premier : `NAMESPACE`, `NAME`, `READY`, `STATUS`, `RESTARTS` et `AGE`.
+La requête utilise le format table pour réunir tous les pods dans un seul tableau.
+Les phases `Succeeded` et `Failed` sont affichées `Completed` et `Error`. Les pods
+Traefik/cert-manager sont visibles dans cet inventaire ;
 **aucune cible de collecte de leurs métriques propres n'est encore ajoutée**.
 
 | Alerte | Condition principale | Délai configuré |
@@ -441,9 +450,10 @@ reste à réaliser. La préparation Windows et des outils est mesurée séparém
 
 « Mon PC héberge un cluster Kubernetes local. Un script construit l'image et la
 publie dans un registry local ; Git conserve la configuration et ArgoCD l'applique.
-J'ai préparé Helm pour organiser l'application, Traefik pour son accès et
+J'utilise Helm pour organiser l'application, Traefik pour son accès et
 cert-manager pour les certificats. PostgreSQL sert au scénario de sauvegarde et
-restauration, Redis à un exercice de cache, et Prometheus/Grafana à la supervision.
+restauration : une sauvegarde est programmée toutes les cinq minutes. Redis sert
+à un exercice de cache, et Prometheus/Grafana à la supervision de tous les pods.
 Ces services sont indépendants de l'application web dans la version actuelle.
 Le runbook décrit les opérations, les résultats attendus et les limites. »
 

@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1120" viewBox="0 0 1600 1120">
 <title>Architecture du lab DevOps local</title>
-<desc>Un PC Windows avec Docker Desktop, un cluster kind, ArgoCD, une application Python, PostgreSQL, Redis, des sauvegardes et la supervision. Helm, Traefik et cert-manager sont prepares mais non deployes.</desc>
+<desc>Un PC Windows avec Docker Desktop, un cluster kind, ArgoCD, une application Python, PostgreSQL, Redis, des sauvegardes et la supervision. Helm, Traefik et cert-manager sont deployes. Sauvegarde PostgreSQL toutes les cinq minutes avec attente de disponibilite. Grafana affiche tous les pods.</desc>
 <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L8,4 L0,8 Z" fill="#475569"/></marker></defs>
 <rect width="1600" height="1120" fill="white"/>
 <text x="80" y="59" font-family="Segoe UI, Arial, sans-serif" font-size="35" fill="#17202c" font-weight="600" text-anchor="start">Architecture du lab DevOps local</text>
-<text x="80" y="93" font-family="Segoe UI, Arial, sans-serif" font-size="20" fill="#64748b" font-weight="400" text-anchor="start">Vue simplifiée du projet — infrastructure locale et flux principaux</text>
+<text x="80" y="93" font-family="Segoe UI, Arial, sans-serif" font-size="20" fill="#64748b" font-weight="400" text-anchor="start">État déployé au 19 octobre 2026 — infrastructure locale et flux principaux</text>
 <rect x="150" y="270" width="1370" height="740" rx="0" fill="white" stroke="#89919a" stroke-width="2" stroke-dasharray="9 7"/>
 <text x="220" y="306" font-family="Segoe UI, Arial, sans-serif" font-size="24" fill="#17202c" font-weight="600" text-anchor="start">PC Windows · Docker Desktop / WSL 2</text>
 <rect x="210" y="485" width="1260" height="475" rx="0" fill="white" stroke="#89919a" stroke-width="2" stroke-dasharray="9 7"/>
@@ -42,7 +42,6 @@
 <text x="660" y="432" font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#64748b" font-weight="400" text-anchor="middle">Windows :5001 · Docker :5000</text>
 <rect x="250" y="550" width="210" height="130" rx="0" fill="white" stroke="#89919a" stroke-width="1.8" stroke-dasharray="9 7"/>
 <text x="263" y="575" font-family="Segoe UI, Arial, sans-serif" font-size="17" fill="#17202c" font-weight="400" text-anchor="start">namespace traefik</text>
-<circle cx="445" cy="569" r="5" fill="#d79029" stroke="none" stroke-width="1.5"/>
 <circle cx="355" cy="607" r="26" fill="#23a6b7" stroke="none" stroke-width="1.5"/>
 <path d="M343,621 H351 V597 M351,609 H367 V597" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M346,600 L351,594 L356,600 M362,600 L367,594 L372,600" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
@@ -50,7 +49,6 @@
 <text x="355" y="672" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#64748b" font-weight="400" text-anchor="middle">Entrée HTTPS</text>
 <rect x="550" y="550" width="240" height="130" rx="0" fill="white" stroke="#89919a" stroke-width="1.8" stroke-dasharray="9 7"/>
 <text x="563" y="575" font-family="Segoe UI, Arial, sans-serif" font-size="17" fill="#17202c" font-weight="400" text-anchor="start">namespace demo</text>
-<circle cx="775" cy="569" r="5" fill="#d79029" stroke="none" stroke-width="1.5"/>
 <circle cx="670" cy="607" r="26" fill="#eef5ff" stroke="none" stroke-width="1.5"/>
 <path d="M653,609 V597 Q653,587 665,587 H678 Q689,587 689,598 V606 H668 V615 H653 Z" fill="#3675a8" stroke="none" stroke-width="0" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M687,605 V617 Q687,627 675,627 H662 Q651,627 651,616 V608 H672 V599 H687 Z" fill="#f6cf45" stroke="none" stroke-width="0" stroke-linecap="round" stroke-linejoin="round"/>
@@ -73,7 +71,6 @@
 <text x="1000" y="672" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#64748b" font-weight="400" text-anchor="middle">Déploiement GitOps</text>
 <rect x="1200" y="550" width="230" height="130" rx="0" fill="white" stroke="#89919a" stroke-width="1.8" stroke-dasharray="9 7"/>
 <text x="1213" y="575" font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#17202c" font-weight="400" text-anchor="start">namespace cert-manager</text>
-<circle cx="1415" cy="569" r="5" fill="#d79029" stroke="none" stroke-width="1.5"/>
 <rect x="1295" y="583" width="40" height="43" rx="3" fill="#f2f7fd" stroke="#3b82c5" stroke-width="2"/>
 <path d="M1304,594 H1326 M1304,602 H1321" fill="none" stroke="#3b82c5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <circle cx="1320" cy="617" r="8" fill="#24a98b" stroke="none" stroke-width="1.5"/>
@@ -93,15 +90,16 @@
 <text x="520" y="880" font-family="Segoe UI, Arial, sans-serif" font-size="19" fill="#17202c" font-weight="600" text-anchor="middle">Redis</text>
 <text x="340" y="903" font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#64748b" font-weight="400" text-anchor="middle">Données · PVC 1 Gi</text>
 <text x="520" y="903" font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#64748b" font-weight="400" text-anchor="middle">Cache temporaire</text>
-<rect x="700" y="785" width="300" height="130" rx="0" fill="white" stroke="#89919a" stroke-width="1.8" stroke-dasharray="9 7"/>
+<rect x="700" y="785" width="300" height="145" rx="0" fill="white" stroke="#89919a" stroke-width="1.8" stroke-dasharray="9 7"/>
 <text x="713" y="810" font-family="Segoe UI, Arial, sans-serif" font-size="17" fill="#17202c" font-weight="400" text-anchor="start">Tâches du namespace data</text>
 <path d="M826,826.8 V854.4 C826,865.92 874,865.92 874,854.4 V826.8" fill="#e16c40" stroke="white" stroke-width="1.5"/>
 <ellipse cx="850" cy="826.8" rx="24" ry="9.600000000000001" fill="#e16c40" stroke="white" stroke-width="1.5"/>
 <path d="M826,840 C826,850.32 874,850.32 874,840" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="850" y="857" font-family="Segoe UI, Arial, sans-serif" font-size="13" fill="white" font-weight="700" text-anchor="middle">SQL</text>
-<text x="850" y="880" font-family="Segoe UI, Arial, sans-serif" font-size="18" fill="#17202c" font-weight="600" text-anchor="middle">Sauvegarde + restauration</text>
-<text x="850" y="903" font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#64748b" font-weight="400" text-anchor="middle">PVC 2 Gi · export Windows</text>
-<rect x="1080" y="785" width="350" height="130" rx="0" fill="white" stroke="#89919a" stroke-width="1.8" stroke-dasharray="9 7"/>
+<text x="850" y="880" font-family="Segoe UI, Arial, sans-serif" font-size="17" fill="#17202c" font-weight="600" text-anchor="middle">Sauvegarde · toutes les 5 min</text>
+<text x="850" y="902" font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#64748b" font-weight="400" text-anchor="middle">Attente PostgreSQL · pg_dump</text>
+<text x="850" y="921" font-family="Segoe UI, Arial, sans-serif" font-size="14" fill="#64748b" font-weight="400" text-anchor="middle">PVC 2 Gi · restauration séparée</text>
+<rect x="1080" y="785" width="350" height="145" rx="0" fill="white" stroke="#89919a" stroke-width="1.8" stroke-dasharray="9 7"/>
 <text x="1093" y="810" font-family="Segoe UI, Arial, sans-serif" font-size="17" fill="#17202c" font-weight="400" text-anchor="start">namespace monitoring</text>
 <circle cx="1138" cy="839" r="23" fill="#e96437" stroke="none" stroke-width="1.5"/>
 <path d="M1125,849 Q1120,839 1132,830 Q1135,826 1134,819 Q1146,826 1144,836 Q1152,831 1151,825 Q1161,846 1148,850 Z" fill="white" stroke="none" stroke-width="0" stroke-linecap="round" stroke-linejoin="round"/>
@@ -115,7 +113,8 @@
 <text x="1138" y="880" font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#17202c" font-weight="600" text-anchor="middle">Prometheus</text>
 <text x="1255" y="880" font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#17202c" font-weight="600" text-anchor="middle">Grafana</text>
 <text x="1372" y="880" font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#17202c" font-weight="600" text-anchor="middle">Alertmanager</text>
-<text x="1255" y="903" font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#64748b" font-weight="400" text-anchor="middle">Exporteurs + kube-state-metrics</text>
+<text x="1255" y="902" font-family="Segoe UI, Arial, sans-serif" font-size="14" fill="#64748b" font-weight="400" text-anchor="middle">Métriques + inventaire de tous les pods</text>
+<text x="1255" y="921" font-family="Segoe UI, Arial, sans-serif" font-size="13" fill="#64748b" font-weight="400" text-anchor="middle">READY · STATUS · RESTARTS · AGE</text>
 <path d="M240,378 H190 V195 H880" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
 <text x="610" y="181" font-family="Segoe UI, Arial, sans-serif" font-size="17" fill="#475569" font-weight="400" text-anchor="middle">git push</text>
 <path d="M470,380 H530" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
@@ -143,9 +142,9 @@
 <text x="835" y="713" font-family="Segoe UI, Arial, sans-serif" font-size="18" fill="#475569" font-weight="400" text-anchor="middle">certificat TLS</text>
 <path d="M610,850 H700" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
 <text x="655" y="836" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#475569" font-weight="400" text-anchor="middle">pg_dump</text>
-<path d="M430,915 V941 H1255 V915" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
-<text x="845" y="933" font-family="Segoe UI, Arial, sans-serif" font-size="17" fill="#475569" font-weight="400" text-anchor="middle">métriques via exporteurs</text>
-<circle cx="88" cy="1050" r="6" fill="#d79029" stroke="none" stroke-width="1.5"/>
-<text x="105" y="1057" font-family="Segoe UI, Arial, sans-serif" font-size="19" fill="#785415" font-weight="400" text-anchor="start">Ajouts à déployer : Helm, Traefik et cert-manager.</text>
+<path d="M430,915 V944 H1405 V930" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="845" y="984" font-family="Segoe UI, Arial, sans-serif" font-size="17" fill="#475569" font-weight="400" text-anchor="middle">métriques via exporteurs</text>
+<circle cx="88" cy="1050" r="6" fill="#20945b" stroke="none" stroke-width="1.5"/>
+<text x="105" y="1057" font-family="Segoe UI, Arial, sans-serif" font-size="19" fill="#236344" font-weight="400" text-anchor="start">Déployés et vérifiés : Helm, Traefik, cert-manager, sauvegardes et supervision.</text>
 <text x="80" y="1090" font-family="Segoe UI, Arial, sans-serif" font-size="18" fill="#64748b" font-weight="400" text-anchor="start">L’application web n’utilise pas encore les bases. Les sauvegardes PostgreSQL restent sur le même PC.</text>
 </svg>
