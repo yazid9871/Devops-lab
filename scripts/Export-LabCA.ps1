@@ -15,6 +15,9 @@ $path = Join-Path $directory 'devops-lab-root-ca.crt'
 if ($Trust) {
     if (-not (Get-Command Import-Certificate -ErrorAction SilentlyContinue)) { throw 'Windows Import-Certificate is unavailable. The public certificate was exported, but no trust was changed.' }
     $certificate = Import-Certificate -FilePath $path -CertStoreLocation Cert:\CurrentUser\Root
+    if (-not $certificate -or -not (Test-Path "Cert:\CurrentUser\Root\$($certificate.Thumbprint)")) {
+        throw 'The local CA was not trusted. Accept the Windows security confirmation, then retry.'
+    }
     Write-Host "Local CA trusted for the current Windows user. Thumbprint: $($certificate.Thumbprint)"
 }
 Write-Host "Public CA certificate: $path"

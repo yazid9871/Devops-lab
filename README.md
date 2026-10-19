@@ -3,9 +3,6 @@
 Installer sur Windows un lab Kubernetes avec **kind, ArgoCD, Helm, Traefik,
 cert-manager, PostgreSQL, Redis, Prometheus et Grafana**.
 
-> Les ajouts Helm et HTTPS sont prêts dans le dépôt ; leur première installation
-> complète reste à valider.
-
 ## 1. Préparer le PC
 
 Si les prérequis sont déjà installés, passer à l’étape 2.
@@ -72,6 +69,8 @@ Si une étape échoue, corriger l’erreur avant de relancer.
 
 Le script installe les services et vérifie une restauration PostgreSQL dans une
 instance séparée. Une relance conserve les données existantes.
+Il approuve aussi l’autorité de certification locale pour ton utilisateur Windows.
+Accepter la confirmation de sécurité Windows si elle apparaît.
 
 ## 5. Ouvrir l’application
 
@@ -84,14 +83,8 @@ Dans un PowerShell ouvert dans le dossier du projet :
 Garder ce terminal ouvert et aller sur **[https://localhost:8443](https://localhost:8443)**.
 L'accès à l'application passe uniquement par Traefik. Le port direct 8081 n'est plus utilisé.
 
-Pour approuver le certificat du lab pour ton utilisateur Windows, lancer dans
-un autre terminal du projet :
-
-```powershell
-.\scripts\Export-LabCA.ps1 -Trust
-```
-
-Puis fermer et rouvrir le navigateur.
+Si le navigateur était déjà ouvert pendant l’installation, le fermer puis le rouvrir
+pour qu’il prenne en compte le certificat.
 
 ## 6. Ouvrir Grafana
 
