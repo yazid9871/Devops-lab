@@ -19,3 +19,7 @@ backups/
 
 # Temporary document previews
 tmp/
+
+# Documentation kept locally only
+/docs/
+/output/

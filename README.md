@@ -108,13 +108,3 @@ compte **admin**. Pour afficher son mot de passe, dans un autre terminal :
 $encoded = kubectl --context kind-devops-lab -n monitoring get secret lab-grafana-admin -o jsonpath='{.data.admin-password}'
 [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encoded))
 ```
-
-## Documentation
-
-- [Schéma d’architecture](docs/diagrams/architecture-locale.png)
-- [Documentation d’exploitation (PDF)](output/pdf/Documentation-exploitation-Devops-lab.pdf)
-- [Runbook : déployer, restaurer et diagnostiquer](docs/runbook.md)
-- [Accès aux interfaces, dont ArgoCD](docs/acces-interfaces.md)
-- [Présentation de 10 minutes](docs/presentation-10-minutes.md)
-- [Architecture détaillée](docs/architecture.md), [Helm](docs/helm.md) et [HTTPS](docs/https-local.md)
-- [Comparaison avec Sobrus](docs/comparaison-sobrus.md) et [limites du lab](docs/note-de-recul.md)
