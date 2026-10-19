@@ -101,3 +101,44 @@ compte **admin**. Pour afficher son mot de passe, dans un autre terminal :
 $encoded = kubectl --context kind-devops-lab -n monitoring get secret lab-grafana-admin -o jsonpath='{.data.admin-password}'
 [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encoded))
 ```
+
+## 7. Publier une version et vérifier ArgoCD
+
+Lab installé, Docker démarré, branche `main` propre et synchronisée avec GitHub.
+Il faut avoir les droits d’écriture sur le dépôt. Depuis le dossier du projet,
+dans un autre terminal :
+
+```powershell
+.\scripts\Publish-Demo.ps1
+```
+
+Le pipeline construit et teste l’image, la publie dans le registry local, puis
+met à jour la version dans Git. Si la publication réussit, conserver son commit
+et vérifier le déploiement :
+
+```powershell
+$deployCommit = git rev-parse HEAD
+.\scripts\Test-Deployment.ps1
+kubectl --context kind-devops-lab -n argocd get applications
+```
+
+ArgoCD synchronise automatiquement, sans commande de synchronisation manuelle.
+Attendu : **PASS**, puis **Synced / Healthy** pour `devops-demo`. Actualiser
+l’application pour voir la nouvelle version.
+
+## 8. Tester un retour arrière
+
+Dans **le même terminal**, après la publication réussie :
+
+```powershell
+git revert --no-edit $deployCommit
+git push origin main
+.\scripts\Test-Deployment.ps1
+```
+
+ArgoCD déploie automatiquement l’ancienne version. Attendu : **PASS** et ancienne
+version visible après actualisation. L’ancienne image doit rester dans le registry.
+Ce retour arrière concerne l’application, pas les données PostgreSQL.
+
+Si le terminal a été fermé, retrouver le commit `Deploy demo v...` avec
+`git log --oneline` et remplacer `$deployCommit` par son identifiant.
