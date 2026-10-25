@@ -21,11 +21,22 @@
     "resources": {"type": "object"},
     "ingress": {
       "type": "object",
-      "required": ["enabled", "className", "host", "tls"],
+      "required": ["enabled", "className", "host", "tls", "rateLimit"],
       "properties": {
         "enabled": {"const": true},
         "className": {"const": "traefik-lab"},
         "host": {"const": "localhost"},
+        "rateLimit": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "average", "period", "burst"],
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "average": {"type": "integer", "minimum": 1, "maximum": 1000},
+            "period": {"type": "string", "pattern": "^[1-9][0-9]*(ms|s|m|h)$"},
+            "burst": {"type": "integer", "minimum": 1, "maximum": 1000}
+          }
+        },
         "tls": {
           "type": "object",
           "required": ["secretName", "issuerName", "duration", "renewBefore"],

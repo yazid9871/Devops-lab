@@ -219,3 +219,82 @@ Chaque relance ajoute une ligne de test et conserve une nouvelle instance avec
 son volume. Les archives et les cibles ne sont pas nettoyées automatiquement.
 Les volumes et les copies Windows restent sur le même PC : ils ne protègent
 pas contre sa perte. Si un test échoue, lire les logs avant de poursuivre.
+
+## 10. Limiter les requêtes avec Traefik
+
+L’application utilise un Middleware Traefik **RateLimit** : **5 requêtes/seconde
+en moyenne**, avec un réservoir de **10 requêtes** pour les rafales. Une fois
+épuisé, Traefik répond **HTTP 429 (Too Many Requests)** avant de contacter
+l’application. Le réservoir se recharge progressivement, pas à chaque changement
+de seconde. La règle couvre tous les chemins de cet Ingress, y compris `/healthz`.
+Les sondes Kubernetes accèdent directement au pod et ne passent pas par cette règle.
+
+### Installer la règle sur un lab existant
+
+Depuis le dossier du projet, avec Docker démarré :
+
+```powershell
+git pull --ff-only
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+.\scripts\Deploy-Access.ps1
+.\scripts\Test-Deployment.ps1
+```
+
+`Deploy-Access.ps1` prépare les CRD et active leur lecture par Traefik. ArgoCD
+applique le Middleware et son lien avec l’Ingress depuis le chart Helm.
+Pour une installation neuve, `Install-Lab.ps1` inclut déjà cette configuration.
+
+### Tester les cas d’utilisation
+
+Fermer les onglets qui rafraîchissent l’application pendant le test pour ne pas
+consommer le même quota. L’autorité locale doit être approuvée par Windows,
+comme lors de l’installation. Lancer :
+
+```powershell
+.\scripts\Test-RateLimit.ps1 -StartTunnel
+```
+
+Le script ouvre si nécessaire un tunnel temporaire vers Traefik, utilise HTTPS
+avec la vérification normale des certificats, puis exécute ces scénarios :
+
+| Cas | Résultat attendu |
+| --- | --- |
+| Navigation à faible débit | HTTP 200 |
+| Rafale initiale de 10 requêtes | HTTP 200 après recharge complète |
+| Envoi de 100 requêtes concurrentes | Certaines acceptées, d’autres en HTTP 429 |
+| Budget de requêtes acceptées | Respect de la rafale + recharge pendant le test |
+| Pause puis nouvelle requête | Retour à HTTP 200 |
+| Alternance `/`, `/version`, `/healthz` | Un quota partagé par source |
+| Paramètres d’URL différents | Aucun nouveau quota |
+| Faux en-têtes `X-Forwarded-For` | Aucun nouveau quota |
+| `User-Agent` différents | Aucun nouveau quota |
+| Cookies différents | Aucun nouveau quota |
+| Chemin inexistant sous charge | HTTP 404 puis HTTP 429 |
+| Navigation après les tests | Application toujours disponible |
+
+Attendu : **RATE LIMIT TEST: PASS (12 cases)**. Le nombre exact de 200/429
+dépend de la durée des requêtes : le réservoir se recharge pendant l’envoi.
+Le détail est enregistré dans `work/rate-limit-report.json`. Le script ne change
+pas la règle et ferme uniquement le tunnel qu’il a lui-même ouvert.
+
+### Changer les seuils et comprendre les limites
+
+Modifier `ingress.rateLimit` dans `charts/devops-demo/values.yaml`, puis créer
+et pousser un commit : ArgoCD applique la nouvelle configuration. `average`
+divisé par `period` donne le débit ; `burst` donne la capacité du réservoir.
+Pour désactiver la règle, mettre `enabled: false`, puis pousser ce changement.
+Le script de test demande une règle active et des seuils modestes adaptés au lab.
+
+La source est **l’adresse IP distante vue par Traefik**, pas un utilisateur
+authentifié. Plusieurs navigateurs ou terminaux derrière le même tunnel peuvent
+donc partager le quota. Changer un cookie ou annoncer une fausse IP ne crée
+pas un utilisateur indépendant. Tester l’indépendance entre deux vraies IP
+demande un accès réseau distinct ; les tests locaux ne prouvent pas ce cas.
+
+Le quota est en mémoire dans **une seule réplique Traefik**, sans Redis. Il se
+réinitialise au redémarrage du contrôleur ; plusieurs répliques auraient des
+compteurs séparés. Cette règle limite la fréquence des requêtes, pas leur durée
+ni un DDoS réseau. Elle s’applique au trafic qui passe par cet Ingress.
+
+Références : [RateLimit](https://doc.traefik.io/traefik/reference/routing-configuration/http/middlewares/ratelimit/)
+et [middlewares sur un Ingress](https://doc.traefik.io/traefik/reference/routing-configuration/kubernetes/ingress/).

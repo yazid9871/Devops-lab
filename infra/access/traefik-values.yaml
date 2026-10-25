@@ -7,7 +7,11 @@ ingressClass:
   name: traefik-lab
 providers:
   kubernetesCRD:
-    enabled: false
+    enabled: true
+    namespaces:
+      - demo
+    allowCrossNamespace: false
+    allowExternalNameServices: false
   kubernetesGateway:
     enabled: false
   kubernetesIngress:

@@ -10,6 +10,11 @@ ingress:
   enabled: true
   className: traefik-lab
   host: localhost
+  rateLimit:
+    enabled: true
+    average: 5
+    period: 1s
+    burst: 10
   tls:
     secretName: devops-demo-tls
     issuerName: devops-lab-ca

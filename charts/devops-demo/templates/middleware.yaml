@@ -1,0 +1,13 @@
+{{- if and .Values.ingress.enabled .Values.ingress.rateLimit.enabled }}
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ .Release.Name }}-ratelimit
+  namespace: {{ .Release.Namespace }}
+spec:
+  rateLimit:
+    average: {{ .Values.ingress.rateLimit.average }}
+    period: {{ .Values.ingress.rateLimit.period | quote }}
+    burst: {{ .Values.ingress.rateLimit.burst }}
+    # Default source: the remote IP seen by Traefik. Do not trust a client header.
+{{- end }}

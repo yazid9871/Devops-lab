@@ -45,6 +45,13 @@ Invoke-AccessKubectl apply -f (Join-Path $accessRoot 'pki/ca-issuer.yaml')
 Invoke-AccessKubectl wait --for=condition=Ready clusterissuer/devops-lab-ca --timeout=120s
 
 Write-Host '[3/4] Traefik (pinned Helm chart, ClusterIP Service)'
+# Helm does not update existing CRDs on upgrade. Apply the pinned chart CRDs
+# before enabling the provider, including on labs installed before rate limiting.
+$traefikCrds = Invoke-AccessHelm show crds traefik --repo https://traefik.github.io/charts --version $versions.TraefikChartVersion
+if (-not $traefikCrds) { throw 'The pinned Traefik chart did not return its CRDs.' }
+$traefikCrds | & kubectl --context kind-devops-lab apply --server-side -f -
+if ($LASTEXITCODE -ne 0) { throw 'Unable to prepare the Traefik CRDs.' }
+Invoke-AccessKubectl wait --for=condition=Established crd/middlewares.traefik.io --timeout=120s
 Invoke-AccessHelm upgrade --install traefik traefik --repo https://traefik.github.io/charts --version $versions.TraefikChartVersion --namespace traefik --create-namespace --values (Join-Path $accessRoot 'traefik-values.yaml') --wait --timeout 300s
 
 Write-Host '[4/4] Export public CA certificate (no change to Windows trust store)'

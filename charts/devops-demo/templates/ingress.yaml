@@ -8,6 +8,9 @@ metadata:
     kubernetes.io/ingress.class: {{ .Values.ingress.className | quote }}
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.tls: "true"
+    {{- if .Values.ingress.rateLimit.enabled }}
+    traefik.ingress.kubernetes.io/router.middlewares: {{ printf "%s-%s-ratelimit@kubernetescrd" .Release.Namespace .Release.Name | quote }}
+    {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   tls:
