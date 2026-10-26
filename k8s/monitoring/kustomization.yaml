@@ -46,3 +46,4 @@ configMapGenerator:
     namespace: "monitoring"
     files:
       - "dashboard.json"
+      - "traefik-dashboard.json"

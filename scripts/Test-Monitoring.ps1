@@ -21,7 +21,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Prometheus configuration validation failed.' }
 & kubectl --context kind-devops-lab -n monitoring exec deployment/prometheus -- promtool test rules /etc/prometheus/tests/tests.yaml
 if ($LASTEXITCODE -ne 0) { throw 'Alert rule tests failed.' }
 $deadline = (Get-Date).AddSeconds(90)
-$expectedJobs = @('prometheus','kube-state-metrics','postgres')
+$expectedJobs = @('prometheus','kube-state-metrics','postgres','traefik')
 $redisInstalled = Invoke-MonitorKubectl -n data get deployment redis --ignore-not-found -o name
 if ($redisInstalled) { $expectedJobs += 'redis' }
 do {
@@ -33,6 +33,8 @@ do {
 } while ($true)
 $pg = Get-Prometheus ('api/v1/query?query=' + [uri]::EscapeDataString('pg_up{job="postgres"}'))
 if ($pg.result.Count -ne 1 -or $pg.result[0].value[1] -ne '1') { throw 'PostgreSQL metric is not healthy.' }
+$traefikMemory = Get-Prometheus ('api/v1/query?query=' + [uri]::EscapeDataString('process_resident_memory_bytes{job="traefik"}'))
+if ($traefikMemory.result.Count -ne 1 -or [double]$traefikMemory.result[0].value[1] -le 0) { throw 'Traefik process metrics are missing.' }
 if ($redisInstalled) {
     $redis = Get-Prometheus ('api/v1/query?query=' + [uri]::EscapeDataString('redis_up{job="redis"}'))
     if ($redis.result.Count -ne 1 -or $redis.result[0].value[1] -ne '1') { throw 'Redis metric is not healthy.' }
@@ -53,6 +55,15 @@ if ($grafana.database -ne 'ok') { throw 'Grafana database is not healthy.' }
 $am = Invoke-MonitorKubectl get --raw /api/v1/namespaces/monitoring/services/http:alertmanager:web/proxy/-/ready
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $dashboard = Get-Content (Join-Path $projectRoot 'k8s/monitoring/dashboard.json') -Raw | ConvertFrom-Json
+$traefikDashboard = Get-Content (Join-Path $projectRoot 'k8s/monitoring/traefik-dashboard.json') -Raw | ConvertFrom-Json
+$mountedTraefikDashboard = Invoke-MonitorKubectl -n monitoring exec deployment/grafana -- cat /var/lib/grafana/dashboards/traefik-dashboard.json | ConvertFrom-Json
+if ($mountedTraefikDashboard.uid -ne $traefikDashboard.uid -or $mountedTraefikDashboard.version -ne $traefikDashboard.version) { throw 'The Traefik dashboard is not mounted in Grafana.' }
+foreach ($panel in $traefikDashboard.panels) {
+    foreach ($target in $panel.targets) {
+        $null = Get-Prometheus ('api/v1/query?query=' + [uri]::EscapeDataString($target.expr))
+    }
+}
+Write-Host 'PASS: Traefik target UP, process metrics collected, dashboard mounted and all its PromQL queries accepted.'
 $podPanel = $dashboard.panels | Where-Object { $_.id -eq 10 }
 # One table frame is required: separate time-series frames can display only one pod.
 if ($podPanel.targets[0].format -ne 'table' -or @($podPanel.transformations | Where-Object id -eq 'labelsToFields').Count -gt 0) {

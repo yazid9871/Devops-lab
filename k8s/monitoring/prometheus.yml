@@ -33,3 +33,7 @@ scrape_configs:
   - job_name: redis
     static_configs:
       - targets: ["redis.data.svc.cluster.local:9121"]
+  - job_name: traefik
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["traefik-metrics.traefik.svc.cluster.local:9100"]

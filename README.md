@@ -440,3 +440,75 @@ Pour la réception par l’encadrant, suivre uniquement ce README, puis conserve
 
 Tout blocage ou intervention supplémentaire doit être noté. Aucun accès à la
 production ni secret de l’entreprise n’est nécessaire pour ces vérifications.
+
+## 12. Observer Traefik dans Grafana
+
+Le dashboard **Traefik - Trafic et limites** complète celui des pods.
+Traefik expose ses métriques sur un Service **ClusterIP interne**, port 9100.
+Prometheus les collecte toutes les **15 secondes** ; Grafana les affiche.
+Il n’est pas nécessaire d’ouvrir le dashboard d’administration de Traefik.
+
+Pour mettre à jour un lab existant, après `git pull --ff-only` :
+
+```powershell
+.\scripts\Deploy-Access.ps1
+.\scripts\Deploy-Monitoring.ps1
+```
+
+Ou sur Mac/Linux :
+
+```bash
+bash scripts/lab.sh access
+bash scripts/lab.sh monitoring
+```
+
+La mise à jour des paramètres de métriques redémarre Traefik et remet ses compteurs
+à zéro. Pour une installation neuve, la configuration est déjà incluse.
+Ouvrir le tunnel Grafana de la section 6 (ou `bash scripts/lab.sh grafana`), puis
+aller sur **[Traefik dans Grafana](http://localhost:3000/d/traefik-lab)** avec
+le même compte `admin` que pour le dashboard des pods.
+
+Le dashboard montre :
+
+- L’état de la collecte Traefik : **1 = disponible**, **0 = échec du scrape**.
+- Le débit reçu, les codes HTTP et la part des réponses **429**.
+- Les requêtes reçues et celles transmises au backend : les refus du Middleware
+  ne sont pas envoyés au Service de l’application.
+- Les erreurs **5xx**, séparées des refus 429.
+- La latence **p95 des réponses 2xx**, en excluant les 429 rapides.
+- Le CPU du processus en cœurs et sa mémoire résidente (RSS).
+
+Les débits et la latence utilisent une fenêtre de **2 minutes**. Les nombres sur
+**5 minutes** sont des estimations Prometheus : ils ne doivent pas être comparés
+à l’unité près avec le compteur exact du générateur. Le p95 est une estimation
+par histogramme ; sans trafic 2xx, il peut ne pas être disponible. Une absence de
+données n’est pas une latence nulle. Le CPU et la RSS décrivent le processus,
+pas toutes les ressources de son conteneur.
+
+### Vérifier avec du trafic réel
+
+Sur Windows :
+
+```powershell
+.\scripts\Test-RateLimitContainer.ps1 -ObserveTraefik
+```
+
+Sur Mac/Linux :
+
+```bash
+bash scripts/lab.sh test-traefik
+```
+
+Le client Linux vérifie la cible Prometheus, lance les 12 scénarios, puis attend
+que la collecte reflète l’augmentation des requêtes, des 429 et du trafic backend.
+Il contrôle aussi le p95, le CPU, la mémoire et la validité des requêtes PromQL
+du dashboard. Attendu : **RATE LIMIT CONTAINER: PASS** et
+**PASS: Traefik observation**. Le rapport contient une section `Observation`
+dans `work/rate-limit-container-report.json` et dans sa copie datée.
+
+Actualiser Grafana après le test. Attendre quelques collectes après un redémarrage.
+Le test provoque volontairement des 429 ; cela ne démontre pas une panne de
+l’application. Les compteurs observés peuvent aussi inclure d’autres requêtes
+concurrentes du lab. La cible actuelle est un Service pour **une réplique** :
+avec plusieurs pods Traefik, il faudra collecter chaque pod séparément pour
+éviter de mélanger leurs compteurs.

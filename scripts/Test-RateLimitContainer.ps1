@@ -1,6 +1,6 @@
 # Same Linux Job and Python scenarios as `bash scripts/lab.sh test-rate-limit`.
 [CmdletBinding()]
-param()
+param([switch]$ObserveTraefik)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $name = 'rate-limit-client-' + (Get-Date).ToUniversalTime().ToString('yyyyMMddHHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0,6)
@@ -21,9 +21,14 @@ try {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'tests/rate_limit_client.py') -Destination (Join-Path $tempDir 'client.py')
     $commit = & git -C $projectRoot rev-parse HEAD
     if ($LASTEXITCODE -ne 0) { throw 'Unable to read the Git commit.' }
-    $config = @{Policy=$policy;TraefikReplicas=$replicas;ExpectedVersion=[IO.File]::ReadAllText((Join-Path $projectRoot 'app/VERSION')).Trim();Commit=$commit}
+    $config = @{Policy=$policy;TraefikReplicas=$replicas;ExpectedVersion=[IO.File]::ReadAllText((Join-Path $projectRoot 'app/VERSION')).Trim();Commit=$commit;ObserveTraefik=$ObserveTraefik.IsPresent}
     [IO.File]::WriteAllText((Join-Path $tempDir 'config.json'),($config | ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
-    Invoke-ClientKubectl -n demo create configmap $name "--from-file=$tempDir/client.py" "--from-file=$tempDir/root-ca.crt" "--from-file=$tempDir/config.json" | Out-Host
+    $files = @("--from-file=$tempDir/client.py", "--from-file=$tempDir/root-ca.crt", "--from-file=$tempDir/config.json")
+    if ($ObserveTraefik) {
+        Copy-Item -LiteralPath (Join-Path $projectRoot 'k8s/monitoring/traefik-dashboard.json') -Destination (Join-Path $tempDir 'traefik-dashboard.json')
+        $files += "--from-file=$tempDir/traefik-dashboard.json"
+    }
+    Invoke-ClientKubectl -n demo create configmap $name @files | Out-Host
     $template = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'tests/rate-limit-job.template.json')).Replace('__TEST_NAME__',$name)
     $template | & kubectl --context kind-devops-lab apply -f - | Out-Host
     if ($LASTEXITCODE -ne 0) { throw 'Unable to create the Linux test Job.' }

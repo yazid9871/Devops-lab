@@ -322,9 +322,14 @@ test_rate_limit() {
     ingress=$(k -n demo get ingress devops-demo -o json | jq -r '.metadata.annotations["traefik.ingress.kubernetes.io/router.middlewares"]')
     [ "$ingress" = demo-devops-demo-ratelimit@kubernetescrd ] || die 'Middleware not attached to the expected Ingress.'
     replicas=$(k -n traefik get deployment traefik -o json | jq '.spec.replicas')
-    jq -n --argjson policy "$policy" --argjson replicas "$replicas" --arg version "$(tr -d '\r\n' < app/VERSION)" --arg commit "$(git rev-parse HEAD)" '{Policy:$policy,TraefikReplicas:$replicas,ExpectedVersion:$version,Commit:$commit}' > "$SCRATCH/config.json"
+    jq -n --argjson policy "$policy" --argjson replicas "$replicas" --arg version "$(tr -d '\r\n' < app/VERSION)" --arg commit "$(git rev-parse HEAD)" --argjson observe "${OBSERVE_TRAEFIK:-false}" '{Policy:$policy,TraefikReplicas:$replicas,ExpectedVersion:$version,Commit:$commit,ObserveTraefik:$observe}' > "$SCRATCH/config.json"
     TEST_NAME="rate-limit-client-$(date -u +%Y%m%d%H%M%S)-$(openssl rand -hex 3)"
-    k -n demo create configmap "$TEST_NAME" --from-file="$SCRATCH/client.py" --from-file="$SCRATCH/root-ca.crt" --from-file="$SCRATCH/config.json"
+    local files=(--from-file="$SCRATCH/client.py" --from-file="$SCRATCH/root-ca.crt" --from-file="$SCRATCH/config.json")
+    if [ "${OBSERVE_TRAEFIK:-false}" = true ]; then
+        cp k8s/monitoring/traefik-dashboard.json "$SCRATCH/traefik-dashboard.json"
+        files+=(--from-file="$SCRATCH/traefik-dashboard.json")
+    fi
+    k -n demo create configmap "$TEST_NAME" "${files[@]}"
     sed "s/__TEST_NAME__/$TEST_NAME/g" scripts/tests/rate-limit-job.template.json | k apply -f -
     mkdir -p work
     for ((attempt=0; attempt<180; attempt++)); do
@@ -359,7 +364,7 @@ install_lab() {
     if [ "$(uname -s)" = Linux ]; then printf 'For browser trust: bash scripts/lab.sh trust-ca (requires sudo on Linux).\n'; fi
 }
 case "${1:-help}" in
-    help|--help|-h) printf '%s\n' 'Usage: bash scripts/lab.sh COMMAND' 'Commands: check install access deploy open test publish backup restore monitoring grafana grafana-password trust-ca test-rate-limit' 'Run inside the cloned project. All kubectl calls use kind-devops-lab.' ;;
+    help|--help|-h) printf '%s\n' 'Usage: bash scripts/lab.sh COMMAND' 'Commands: check install access deploy open test publish backup restore monitoring grafana grafana-password trust-ca test-rate-limit test-traefik' 'Run inside the cloned project. All kubectl calls use kind-devops-lab.' ;;
     check) check ;;
     install) install_lab ;;
     access) need helm kubectl openssl; access ;;
@@ -374,5 +379,6 @@ case "${1:-help}" in
     grafana-password) k -n monitoring get secret lab-grafana-admin -o 'jsonpath={.data.admin-password}' | openssl base64 -d -A; printf '\n' ;;
     trust-ca) trust_ca ;;
     test-rate-limit) test_rate_limit ;;
+    test-traefik) OBSERVE_TRAEFIK=true; test_rate_limit ;;
     *) die "Unknown command: $1. Run bash scripts/lab.sh help." ;;
 esac

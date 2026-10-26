@@ -10,6 +10,8 @@ import socket
 import ssl
 import sys
 import time
+import urllib.parse
+import urllib.request
 from datetime import datetime, timezone
 
 
@@ -48,7 +50,36 @@ def run(config, ca_file):
         "Policy": policy,
         "Cases": results,
         "Passed": False,
+        "Observation": {"Requested": bool(config.get("ObserveTraefik"))},
     }
+
+    def prom_query(expression):
+        url = "http://prometheus.monitoring.svc.cluster.local:9090/api/v1/query?" + urllib.parse.urlencode({"query": expression})
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with opener.open(url, timeout=10) as response:
+            payload = json.load(response)
+        if payload.get("status") != "success":
+            raise RuntimeError(f"Prometheus rejected query: {expression}")
+        return payload["data"]["result"]
+
+    def prom_number(expression, absent=None):
+        result = prom_query(expression)
+        if not result:
+            return absent
+        if len(result) != 1:
+            raise RuntimeError(f"Expected one result for {expression}")
+        return float(result[0]["value"][1])
+
+    router_selector = 'job="traefik",router=~"demo-devops-demo-.*"'
+    service_selector = 'job="traefik",service=~"demo-devops-demo-.*"'
+
+    def traffic_snapshot():
+        return {
+            "Up": prom_number('max(up{job="traefik"})', 0),
+            "Received": prom_number(f'sum(traefik_router_requests_total{{{router_selector}}})', 0),
+            "Rejected": prom_number(f'sum(traefik_router_requests_total{{{router_selector},code="429"}})', 0),
+            "Backend": prom_number(f'sum(traefik_service_requests_total{{{service_selector}}})', 0),
+        }
 
     def request(path="/", headers=None):
         connection = TraefikConnection("localhost", context=context, timeout=10)
@@ -102,6 +133,15 @@ def run(config, ca_file):
         def reset():
             time.sleep(refill)
 
+        before = None
+        if config.get("ObserveTraefik"):
+            deadline = time.monotonic() + 90
+            while prom_number('max(up{job="traefik"})', 0) != 1:
+                if time.monotonic() > deadline:
+                    raise RuntimeError("Traefik metrics target is not UP; deploy access and monitoring first")
+                time.sleep(3)
+            before = traffic_snapshot()
+
         reset()
         status, body = request("/version")
         if status != 200 or json.loads(body).get("version") != config["ExpectedVersion"]:
@@ -138,7 +178,35 @@ def run(config, ca_file):
         detail = batch(3, ("/", "/healthz", "/version"))
         record("12 - Application remains healthy", detail["Ok"] == 3, detail)
         report["Passed"] = len(results) == 12 and all(case["Passed"] for case in results)
+        if config.get("ObserveTraefik"):
+            deadline = time.monotonic() + 90
+            while True:
+                after = traffic_snapshot()
+                delta = {key: after[key]-before[key] for key in ("Received", "Rejected", "Backend")}
+                p95 = prom_number(f'histogram_quantile(0.95, sum by (le) (rate(traefik_router_request_duration_seconds_bucket{{{router_selector},code=~"2.."}}[2m])))')
+                if (after["Up"] == 1 and all(value > 0 for value in delta.values())
+                        and p95 is not None and math.isfinite(p95)):
+                    break
+                if time.monotonic() > deadline:
+                    raise RuntimeError("Traffic or p95 is not visible after collection; inspect router/service labels and Prometheus targets")
+                time.sleep(3)
+            cpu = prom_number('sum(rate(process_cpu_seconds_total{job="traefik"}[2m]))')
+            memory = prom_number('sum(process_resident_memory_bytes{job="traefik"})')
+            if cpu is None or not math.isfinite(cpu) or cpu < 0 or memory is None or memory <= 0:
+                raise RuntimeError("Missing Traefik CPU or resident-memory metrics")
+            dashboard = json.loads((Path(ca_file).parent / "traefik-dashboard.json").read_text())
+            queries = [target["expr"] for panel in dashboard["panels"] for target in panel.get("targets", [])]
+            for expression in queries:
+                prom_query(expression)
+            report["Observation"].update({
+                "Passed": True, "Before": before, "After": after, "CounterDeltas": delta,
+                "P95Seconds2xx": p95, "CpuCores": cpu, "ResidentMemoryBytes": memory,
+                "DashboardUid": dashboard["uid"], "DashboardQueriesValidated": len(queries),
+                "Note": "Counter deltas may include other concurrent lab traffic. P95 is a histogram estimate.",
+            })
+            print(f"PASS: Traefik observation | {json.dumps(report['Observation'])}", flush=True)
     except Exception as error:
+        report["Passed"] = False
         results.append({"Name": "Execution", "Passed": False, "Details": str(error)})
         print(f"FAIL: {error}", flush=True)
     report["Seconds"] = round(time.monotonic()-started, 3)

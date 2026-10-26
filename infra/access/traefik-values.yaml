@@ -36,6 +36,17 @@ api:
 ingressRoute:
   dashboard:
     enabled: false
+metrics:
+  prometheus:
+    entryPoint: metrics
+    addEntryPointsLabels: true
+    addRoutersLabels: true
+    addServicesLabels: true
+    buckets: "0.005,0.01,0.025,0.05,0.1,0.25,0.5,1,2,5"
+    service:
+      enabled: true
+    serviceMonitor:
+      enabled: false
 resources:
   requests:
     cpu: 50m
