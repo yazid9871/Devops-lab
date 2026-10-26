@@ -44,12 +44,6 @@ winget install --exact --id Helm.Helm --source winget
 Rouvrir PowerShell et démarrer Docker Desktop avec WSL 2 et les conteneurs Linux.
 Son Kubernetes intégré n’est pas nécessaire.
 
-### macOS / Linux
-
-Sur macOS avec Homebrew : `brew install git python kubectl helm`, puis installer
-et démarrer Docker Desktop. Sur Linux, installer Docker Engine, Python 3, Git,
-kubectl et Helm selon leurs instructions officielles. `docker info` doit fonctionner.
-
 ## Démarrage rapide
 
 ### Windows — PowerShell
@@ -59,16 +53,6 @@ git clone https://github.com/yazid9871/Devops-lab.git
 cd Devops-lab
 python scripts/platform_lab.py bootstrap
 ```
-
-### macOS / Linux
-
-```bash
-git clone https://github.com/yazid9871/Devops-lab.git
-cd Devops-lab
-make bootstrap
-```
-
-Sans Make : `python3 scripts/platform_lab.py bootstrap`.
 
 Le bootstrap crée le cluster, construit et publie l’image dans le registry local,
 installe ArgoCD, puis applique l’application racine. ArgoCD installe la plateforme.
@@ -207,7 +191,6 @@ python scripts/platform_lab.py test-traffic --scenario two-clients
 | spoof | Changer X-Forwarded-For ne contourne pas le quota |
 | two-clients | Deux IP distinctes : la rafale de A ne bloque pas le trafic normal de B |
 
-Sur macOS/Linux : `make test-normal`, `make test-flood`, `make test-two-clients`, etc.
 Les pods clients sont supprimés à la fin. Les requêtes passent par le Service
 Traefik en HTTP, depuis le cluster : cela ne simule pas un load balancer OVH externe.
 Le quota reste en mémoire, **par instance Traefik**, avec une seule instance.
@@ -243,8 +226,6 @@ Pour utiliser votre propre dépôt public : modifier l’origin, lancer
 modifiés avant `bootstrap`.
 
 ## Exploitation
-
-Sur macOS/Linux, remplacer `python` par `python3`, ou utiliser les cibles Make :
 
 | Opération | Commande |
 |---|---|
@@ -289,3 +270,44 @@ réseau, la confiance des proxies et les versions doivent être comparés à la 
 Adapté de [WesleyCharlesBlake/k3d-argocd-template](https://github.com/WesleyCharlesBlake/k3d-argocd-template).
 Voir [les adaptations](platform/UPSTREAM.md) et [la licence MIT](platform/LICENSE).
 Alloy remplace Promtail ; aucun service Tempo ou Mimir séparé n’est installé.
+
+## macOS / Linux
+
+### Prérequis
+
+Sur macOS avec Homebrew :
+
+```bash
+brew install git python kubectl helm
+```
+
+Installer et démarrer Docker Desktop. Sur Linux, installer Docker Engine,
+Python 3, Git, kubectl et Helm selon leurs instructions officielles.
+Dans les deux cas, `docker info` doit fonctionner. Make est facultatif.
+
+### Démarrage rapide
+
+```bash
+git clone https://github.com/yazid9871/Devops-lab.git
+cd Devops-lab
+python3 scripts/platform_lab.py bootstrap
+```
+
+Avec Make installé : `make bootstrap`.
+Les adresses et les résultats attendus sont les mêmes que dans les sections précédentes.
+
+### Commandes courantes
+
+Remplacer `python` par `python3` dans les commandes présentées plus haut :
+
+```bash
+python3 scripts/platform_lab.py status
+python3 scripts/platform_lab.py grafana-password
+python3 scripts/platform_lab.py test-traffic --scenario flood
+python3 scripts/platform_lab.py test-traffic --scenario two-clients
+python3 scripts/platform_lab.py backup
+python3 scripts/platform_lab.py test-restore
+```
+
+Les raccourcis Make sont aussi disponibles : `make status`, `make test-normal`,
+`make test-flood`, `make test-two-clients`, `make backup` et `make test-restore`.
