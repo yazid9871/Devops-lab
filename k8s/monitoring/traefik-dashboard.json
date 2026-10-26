@@ -2,7 +2,7 @@
   "uid": "traefik-lab",
   "title": "Traefik - Trafic et limites",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "timezone": "browser",
   "refresh": "15s",
   "time": {
@@ -755,5 +755,14 @@
   },
   "annotations": {
     "list": []
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "15s",
+      "30s",
+      "1m",
+      "5m"
+    ]
   }
 }
