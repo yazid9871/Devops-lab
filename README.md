@@ -107,10 +107,10 @@ Si les noms ne se résolvent pas, ajouter
 ```mermaid
 flowchart TB
     Dev[Développeur] -->|commit et push| Git[GitHub]
-    Git --> Argo[ArgoCD — application racine]
     subgraph Docker[PC local — Docker]
         Registry[Registry — localhost:5050]
         subgraph Cluster[Cluster k3d — 1 serveur et 2 workers]
+            Argo[ArgoCD — application racine]
             Argo --> Tools[Prometheus / Grafana / Loki / Alloy]
             Argo --> Operator[CloudNativePG]
             Argo --> App[Application Go — 2 pods]
@@ -127,6 +127,7 @@ flowchart TB
         end
         Registry -. images .-> App
     end
+    Git --> Argo
     Client[Navigateur / clients de test] --> LB
 ```
 
