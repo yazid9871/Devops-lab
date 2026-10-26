@@ -5,7 +5,7 @@ image:
   repository: localhost:5050/myapp
   pullPolicy: IfNotPresent
   # Tag of "" falls back to .Chart.AppVersion. Override per release.
-  tag: "v1"
+  tag: "v2"
 
 replicaCount: 2
 

@@ -164,7 +164,20 @@ def bootstrap():
     if not shutil.which('k3d') and not (WORK / 'bin' / ('k3d.exe' if os.name == 'nt' else 'k3d')).exists():
         tools()
     cluster_create()
-    dev_image()
+    repository, tag = app_values()
+    if repository != IMAGE:
+        raise RuntimeError('Bootstrap expects the local registry image repository: ' + IMAGE)
+    try:
+        with urllib.request.build_opener(urllib.request.ProxyHandler({})).open('http://127.0.0.1:5050/v2/myapp/tags/list', timeout=10) as response:
+            image_exists = tag in (json.load(response).get('tags') or [])
+    except urllib.error.HTTPError as error:
+        if error.code != 404:
+            raise
+        image_exists = False
+    if image_exists:
+        print('Keeping existing registry image: ' + repository + ':' + tag)
+    else:
+        dev_image()
     install_argocd()
     apply(load(PLATFORM / 'bootstrap/argocd/root-app.yaml'))
     wait_apps()
@@ -186,6 +199,18 @@ def get_http(path, host='myapp.localhost', method='GET', body=None):
         return response.read()
 
 
+def grafana_request(path, body=None):
+    secret = json.loads(k('-n', 'tooling', 'get', 'secret', 'grafana-admin', '-o', 'json', capture=True))
+    credentials = base64.b64decode(secret['data']['admin-user']) + b':' + base64.b64decode(secret['data']['admin-password'])
+    headers = {'Host': 'grafana.localhost', 'Authorization': 'Basic ' + base64.b64encode(credentials).decode(),
+               'Content-Type': 'application/json'}
+    request = urllib.request.Request('http://127.0.0.1' + path, headers=headers,
+                                     data=json.dumps(body).encode() if body is not None else None)
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    with opener.open(request, timeout=30) as response:
+        return json.load(response)
+
+
 def prom(expression):
     import urllib.parse
     path = '/api/v1/namespaces/tooling/services/http:kps-kube-prometheus-stack-prometheus:9090/proxy/api/v1/query?query='
@@ -205,12 +230,32 @@ def verify():
     if not any(row['id'] == item['id'] and row['name'] == marker for row in items):
         raise RuntimeError('Database round trip failed.')
     deadline = time.monotonic() + 90
-    while not prom('up{namespace="traefik"}') or not prom('up{namespace="workload",service="myapp"}'):
+    while not prom('up{namespace="traefik"} == 1') or not prom('up{namespace="workload",service="myapp"} == 1'):
         if time.monotonic() > deadline:
             raise RuntimeError('Traefik/application scrape targets missing.')
         time.sleep(5)
     print('PASS: Traefik route, liveness, DB readiness, item write/read and Prometheus targets.')
     print('Test item retained: ' + marker)
+    dashboard = grafana_request('/api/dashboards/uid/traefik-k3d')['dashboard']
+    validated = 0
+    for panel in dashboard['panels']:
+        for target in panel.get('targets', []):
+            result = grafana_request('/api/ds/query', {'from': 'now-15m', 'to': 'now', 'queries': [{
+                'refId': 'A', 'datasource': {'type': 'prometheus', 'uid': 'prometheus'}, 'expr': target['expr'],
+                'instant': target.get('instant', False), 'range': target.get('range', True), 'intervalMs': 15000, 'maxDataPoints': 600}]})
+            if result['results']['A'].get('error'):
+                raise RuntimeError('Grafana query failed: ' + result['results']['A']['error'])
+            validated += 1
+    print(f'PASS: Grafana dashboard provisioned; {validated} datasource queries accepted.')
+    import urllib.parse
+    log_path = '/api/v1/namespaces/tooling/services/http:loki:3100/proxy/loki/api/v1/query_range?'
+    log_path += urllib.parse.urlencode({'query': '{namespace="workload",container="myapp"}', 'limit': 5})
+    log_deadline = time.monotonic() + 60
+    while not json.loads(k('get', '--raw', log_path, capture=True))['data']['result']:
+        if time.monotonic() > log_deadline:
+            raise RuntimeError('No application logs collected by Alloy in Loki.')
+        time.sleep(5)
+    print('PASS: application logs collected by Alloy and queryable in Loki.')
 
 
 def password(which):
@@ -274,6 +319,8 @@ def test_restore():
 def test_traffic(scenario):
     name = 'traffic-' + secrets.token_hex(4)
     code = (PLATFORM / 'tests/traffic_client.py').read_text(encoding='utf-8')
+    middleware = json.loads(k('-n', 'workload', 'get', 'middleware', 'myapp-ratelimit', '-o', 'json', capture=True))
+    policy = json.dumps(middleware['spec']['rateLimit'])
     pods = [name + '-a', name + '-b'] if scenario == 'two-clients' else [name + '-a']
     try:
         for pod in pods:
@@ -291,12 +338,22 @@ def test_traffic(scenario):
                 raise RuntimeError('Two distinct source IPs are required.')
             print('Independent clients: ' + ', '.join(ips))
             with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
-                futures = [pool.submit(k, '-n', 'workload', 'exec', pods[0], '--', 'python', '-c', code, 'flood'),
-                           pool.submit(k, '-n', 'workload', 'exec', pods[1], '--', 'python', '-c', code, 'normal')]
+                futures = [pool.submit(k, '-n', 'workload', 'exec', pods[0], '--', 'python', '-c', code, 'flood', policy, capture=True),
+                           pool.submit(k, '-n', 'workload', 'exec', pods[1], '--', 'python', '-c', code, 'normal', policy, capture=True)]
+                results = []
                 for future in futures:
-                    future.result()
+                    result = future.result()
+                    print(result)
+                    results.append(json.loads(result))
         else:
-            k('-n', 'workload', 'exec', pods[0], '--', 'python', '-c', code, scenario)
+            result = k('-n', 'workload', 'exec', pods[0], '--', 'python', '-c', code, scenario, policy, capture=True)
+            print(result)
+            results = [json.loads(result)]
+        WORK.mkdir(parents=True, exist_ok=True)
+        report = {'Scenario': scenario, 'Passed': True, 'Policy': json.loads(policy), 'Clients': pods, 'Results': results}
+        report_path = WORK / (name + '-report.json')
+        report_path.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+        print('Report: ' + str(report_path))
         print('PASS: ' + scenario + '. Observe HTTP codes in Grafana after two scrapes (15-30s).')
     finally:
         for pod in pods:
