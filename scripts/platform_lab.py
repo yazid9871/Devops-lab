@@ -146,14 +146,19 @@ def install_argocd():
 
 def wait_apps():
     names = ('kube-prometheus-stack', 'loki', 'traefik', 'cnpg-operator', 'alloy', 'dashboards', 'postgres', 'myapp', 'root')
+    expected_revision = run('git', 'rev-parse', 'HEAD', capture=True)
     deadline = time.monotonic() + 1200
     while time.monotonic() < deadline:
         apps = json.loads(k('-n', 'argocd', 'get', 'applications', '-o', 'json', capture=True))['items']
         states = {app['metadata']['name']: (app.get('status', {}).get('sync', {}).get('status'),
                                            app.get('status', {}).get('health', {}).get('status')) for app in apps}
         remaining = [name for name in names if states.get(name) != ('Synced', 'Healthy')]
+        for app in apps:
+            if app['metadata']['name'] in ('root', 'myapp') and app.get('status', {}).get('sync', {}).get('revision') != expected_revision:
+                if app['metadata']['name'] not in remaining:
+                    remaining.append(app['metadata']['name'])
         if not remaining:
-            print('PASS: root and all eight child applications Synced / Healthy.')
+            print('PASS: root and all eight child applications Synced / Healthy; root and myapp at ' + expected_revision[:7])
             return
         print('Waiting: ' + ', '.join(f'{name}={states.get(name, "not created")}' for name in remaining), flush=True)
         time.sleep(15)
