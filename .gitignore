@@ -23,3 +23,7 @@ tmp/
 # Documentation kept locally only
 /docs/
 /output/
+
+# Python caches
+__pycache__/
+*.pyc

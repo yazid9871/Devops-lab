@@ -1,0 +1,103 @@
+{
+  "apiVersion": "argoproj.io/v1alpha1",
+  "kind": "Application",
+  "metadata": {
+    "name": "traefik",
+    "namespace": "argocd",
+    "annotations": {
+      "argocd.argoproj.io/sync-wave": "-20"
+    }
+  },
+  "spec": {
+    "project": "default",
+    "source": {
+      "repoURL": "https://traefik.github.io/charts",
+      "chart": "traefik",
+      "targetRevision": "41.6.1",
+      "helm": {
+        "releaseName": "traefik",
+        "valuesObject": {
+          "deployment": {
+            "replicas": 1
+          },
+          "providers": {
+            "kubernetesIngress": {
+              "enabled": true,
+              "publishedService": {
+                "enabled": true
+              }
+            },
+            "kubernetesCRD": {
+              "enabled": true,
+              "allowCrossNamespace": false
+            }
+          },
+          "service": {
+            "type": "LoadBalancer",
+            "spec": {
+              "externalTrafficPolicy": "Local"
+            }
+          },
+          "metrics": {
+            "prometheus": {
+              "addRoutersLabels": true,
+              "addServicesLabels": true,
+              "service": {
+                "enabled": true
+              },
+              "serviceMonitor": {
+                "enabled": true,
+                "additionalLabels": {
+                  "release": "kps"
+                }
+              }
+            }
+          },
+          "resources": {
+            "requests": {
+              "cpu": "50m",
+              "memory": "64Mi"
+            },
+            "limits": {
+              "memory": "256Mi"
+            }
+          },
+          "api": {
+            "dashboard": false
+          },
+          "ingressRoute": {
+            "dashboard": {
+              "enabled": false
+            }
+          },
+          "accessLog": {
+            "enabled": true,
+            "format": "json"
+          }
+        }
+      }
+    },
+    "destination": {
+      "server": "https://kubernetes.default.svc",
+      "namespace": "traefik"
+    },
+    "syncPolicy": {
+      "automated": {
+        "prune": true,
+        "selfHeal": true
+      },
+      "syncOptions": [
+        "CreateNamespace=true",
+        "ServerSideApply=true"
+      ],
+      "retry": {
+        "limit": 8,
+        "backoff": {
+          "duration": "5s",
+          "factor": 2,
+          "maxDuration": "1m"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "apiVersion": "postgresql.cnpg.io/v1",
+  "kind": "Cluster",
+  "metadata": {
+    "name": "postgres",
+    "namespace": "workload"
+  },
+  "spec": {
+    "instances": 1,
+    "imageName": "ghcr.io/cloudnative-pg/postgresql:18.4",
+    "bootstrap": {
+      "initdb": {
+        "database": "myapp",
+        "owner": "myapp"
+      }
+    },
+    "storage": {
+      "size": "2Gi",
+      "storageClass": "local-path"
+    },
+    "resources": {
+      "requests": {
+        "cpu": "100m",
+        "memory": "256Mi"
+      },
+      "limits": {
+        "memory": "512Mi"
+      }
+    },
+    "monitoring": {
+      "enablePodMonitor": true
+    }
+  }
+}

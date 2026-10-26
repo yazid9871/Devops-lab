@@ -1,0 +1,35 @@
+name: Platform validation
+on:
+  push:
+    branches: [main]
+    paths: ['platform/**', 'scripts/platform_lab.py', '.github/workflows/platform.yml']
+  pull_request:
+    paths: ['platform/**', 'scripts/platform_lab.py', '.github/workflows/platform.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: platform-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Python syntax and CLI
+        run: |
+          python -m py_compile scripts/platform_lab.py platform/tests/traffic_client.py
+          python scripts/platform_lab.py --help
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.1
+      - name: Helm lint and render
+        run: |
+          helm lint platform/charts/myapp --strict
+          helm template myapp platform/charts/myapp --namespace workload > /tmp/myapp.yaml
+          test -s /tmp/myapp.yaml
+      - name: Go vet, test and Docker build
+        run: docker build --build-arg VERSION=ci --build-arg COMMIT=${{ github.sha }} -t myapp:ci platform/app

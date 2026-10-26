@@ -1,0 +1,48 @@
+{
+  "apiVersion": "k3d.io/v1alpha5",
+  "kind": "Simple",
+  "metadata": {
+    "name": "devops-lab-k3d"
+  },
+  "servers": 1,
+  "agents": 2,
+  "image": "rancher/k3s:v1.37.1-k3s1",
+  "ports": [
+    {
+      "port": "127.0.0.1:80:80",
+      "nodeFilters": [
+        "loadbalancer"
+      ]
+    },
+    {
+      "port": "127.0.0.1:443:443",
+      "nodeFilters": [
+        "loadbalancer"
+      ]
+    }
+  ],
+  "registries": {
+    "create": {
+      "name": "devops-lab-k3d-registry",
+      "host": "127.0.0.1",
+      "hostPort": "5050"
+    },
+    "config": "mirrors:\n  \"localhost:5050\":\n    endpoint:\n      - \"http://devops-lab-k3d-registry:5000\"\n"
+  },
+  "options": {
+    "k3s": {
+      "extraArgs": [
+        {
+          "arg": "--disable=traefik",
+          "nodeFilters": [
+            "server:*"
+          ]
+        }
+      ]
+    },
+    "kubeconfig": {
+      "updateDefaultKubeconfig": true,
+      "switchCurrentContext": false
+    }
+  }
+}

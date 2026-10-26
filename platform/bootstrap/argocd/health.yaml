@@ -1,0 +1,4 @@
+{
+  "resource.customizations.health.argoproj.io_Application": "hs = { status = \"Progressing\", message = \"Waiting for child application\" }\nif obj.status ~= nil and obj.status.health ~= nil then\n  hs.status = obj.status.health.status\n  hs.message = obj.status.health.message\nend\nreturn hs",
+  "resource.customizations.health.postgresql.cnpg.io_Cluster": "hs = { status = \"Progressing\", message = \"Waiting for PostgreSQL instances\" }\nif obj.status ~= nil and obj.status.readyInstances == obj.spec.instances then\n  hs.status = \"Healthy\"\n  hs.message = \"PostgreSQL instances ready\"\nend\nreturn hs"
+}
