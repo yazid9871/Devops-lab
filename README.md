@@ -1,7 +1,10 @@
 # Lab DevOps local
 
-Installer sur Windows un lab Kubernetes avec **kind, ArgoCD, Helm, Traefik,
-cert-manager, PostgreSQL, Redis, Prometheus et Grafana**.
+Lab Kubernetes avec **kind, ArgoCD, Helm, Traefik, cert-manager, PostgreSQL,
+Redis, Prometheus et Grafana**.
+
+**Windows :** suivre les étapes 1 à 10 ci-dessous, avec PowerShell.
+**macOS / Linux :** suivre la section 11, avec Bash (sans PowerShell).
 
 ## 1. Préparer le PC
 
@@ -298,3 +301,142 @@ ni un DDoS réseau. Elle s’applique au trafic qui passe par cet Ingress.
 
 Références : [RateLimit](https://doc.traefik.io/traefik/reference/routing-configuration/http/middlewares/ratelimit/)
 et [middlewares sur un Ingress](https://doc.traefik.io/traefik/reference/routing-configuration/kubernetes/ingress/).
+
+## 11. Utiliser le lab sur macOS ou Linux
+
+Le parcours Bash utilise les mêmes manifests, charts, images et règles Traefik.
+Il n’utilise ni `curl.exe`, ni le magasin de certificats Windows, ni PowerShell.
+Il est écrit pour Bash 3.2 et versions suivantes. `make` est un raccourci facultatif.
+
+### Préparer un Mac
+
+Avec [Homebrew](https://brew.sh/) déjà installé :
+
+```bash
+brew install git kind kubectl helm jq
+brew install --cask docker
+open -a Docker
+```
+
+Attendre le démarrage de Docker Desktop en mode Linux. Bash, curl et OpenSSL
+doivent être disponibles dans le terminal. Sur Apple Silicon, l’image de
+l’application est construite pour l’architecture du nœud kind, sans forcer AMD64.
+Chaque PC conserve son propre registry et construit sa propre image.
+
+Sur Linux, installer Docker Engine, Git, Bash, curl, OpenSSL, jq, kind, kubectl
+et Helm avant de continuer. Le compte doit pouvoir utiliser Docker sans `sudo`.
+Utiliser les instructions officielles de [Docker](https://docs.docker.com/engine/install/),
+[kind](https://kind.sigs.k8s.io/docs/user/quick-start/) et [Helm](https://helm.sh/docs/intro/install/).
+
+### Installer et ouvrir
+
+```bash
+git clone https://github.com/yazid9871/Devops-lab.git
+cd Devops-lab
+bash scripts/lab.sh check
+bash scripts/lab.sh install
+bash scripts/lab.sh open
+```
+
+Si le projet est déjà cloné, entrer dans son dossier et faire `git pull --ff-only`.
+`install` attend la synchronisation ArgoCD, teste l’application en HTTPS, déploie
+PostgreSQL et Redis, teste une restauration et attend les workloads de supervision.
+Cette vérification de supervision ne remplace pas les tests détaillés des alertes
+du parcours Windows. Le rapport est `work/install-report-unix.json`.
+
+Garder le terminal `open` actif, puis aller sur **https://localhost:8443**.
+Sur Mac, l’installation importe l’autorité locale dans le trousseau de session ;
+accepter la demande du système et rouvrir le navigateur si nécessaire.
+Sur Linux, HTTPS est testé avec le certificat public explicite ; pour approuver
+l’autorité dans le système et accéder avec le navigateur, lancer :
+
+```bash
+bash scripts/lab.sh trust-ca
+```
+
+Cette commande demande `sudo` sous Debian/Ubuntu et Fedora/RHEL. Un navigateur
+avec son propre magasin de certificats peut demander un import séparé.
+Seul le certificat **public** est exporté, jamais la clé privée de l’autorité.
+
+### Les opérations courantes
+
+| Opération | macOS / Linux |
+| --- | --- |
+| Préparer ou mettre à jour Traefik et cert-manager | `bash scripts/lab.sh access` |
+| Déployer l’application via ArgoCD | `bash scripts/lab.sh deploy` |
+| Vérifier la synchronisation et HTTPS | `bash scripts/lab.sh test` |
+| Publier une nouvelle version | `bash scripts/lab.sh publish` |
+| Sauvegarder et exporter sur le poste | `bash scripts/lab.sh backup` |
+| Tester la restauration dans une nouvelle instance | `bash scripts/lab.sh restore` |
+| Ouvrir Grafana | `bash scripts/lab.sh grafana` |
+| Afficher le mot de passe Grafana | `bash scripts/lab.sh grafana-password` |
+
+Pour publier : droits d’écriture GitHub, branche `main` propre et synchronisée.
+Après une publication réussie, conserver le commit, puis vérifier :
+
+```bash
+deploy_commit=$(git rev-parse HEAD)
+bash scripts/lab.sh test
+```
+
+Retour arrière, dans le même terminal :
+
+```bash
+git revert --no-edit "$deploy_commit"
+git push origin main
+bash scripts/lab.sh test
+```
+
+Une restauration Bash ajoute une ligne fictive et conserve sa cible et son volume,
+comme le parcours Windows. Le rapport mesure la restauration seule en millisecondes
+et l’ensemble création/restauration/contrôles en secondes entières, hors sauvegarde.
+Les fichiers non suivis ne bloquent pas le parcours Bash ; les modifications des
+fichiers suivis bloquent l’installation et la publication pour éviter un écart avec Git.
+
+### Le même client Linux pour les tests de trafic
+
+Sur Mac ou Linux :
+
+```bash
+bash scripts/lab.sh test-rate-limit
+```
+
+Sur Windows, pour exécuter exactement le même client :
+
+```powershell
+.\scripts\Test-RateLimitContainer.ps1
+```
+
+Les deux commandes créent un Job temporaire dans `demo`, avec la même image Python
+Linux et le même fichier `scripts/tests/rate_limit_client.py`. Aucun Python n’est
+nécessaire sur le poste. Le client se connecte au Service Traefik en HTTPS, avec
+le nom TLS `localhost`, une autorité explicite et la vérification du certificat.
+Le trafic de ce test ne passe pas par `port-forward` et ne dépend pas du trousseau
+du poste. Le ConfigMap contient le code, les paramètres et le certificat public.
+
+Attendu : **RATE LIMIT CONTAINER: PASS (12 cases)**. Les rapports datés et les logs
+restent dans `work/`, avec une copie du dernier rapport dans
+`work/rate-limit-container-report.json`. Le Job et son ConfigMap sont supprimés
+à la fin ; les ressources de l’application restent en place.
+
+Ce scénario utilise **un seul pod client** : il ne démontre pas l’indépendance
+entre deux IP ni le passage par un Load Balancer OVH. L’ancien script Windows
+`Test-RateLimit.ps1 -StartTunnel` reste disponible pour tester le chemin du navigateur.
+
+### État de validation et réception sur Mac
+
+Le client Linux commun est vérifié sur le lab depuis Windows. Le parcours Bash
+est contrôlé par analyse statique et par des simulations de commandes sous Linux,
+dont sauvegarde, restauration et lancement du client. Ces simulations ne prouvent
+pas une installation complète : **une installation réelle sous Linux et sur un
+vrai Mac Intel ou Apple Silicon reste à valider**.
+La disponibilité d’une image ARM64 ne suffit pas à prouver cette installation.
+Pour la réception par l’encadrant, suivre uniquement ce README, puis conserver :
+
+1. Le modèle du Mac et son architecture (`uname -m`), les versions des outils.
+2. Le résultat de `install` et son rapport, puis l’accès HTTPS dans le navigateur.
+3. Une publication, un contrôle réussi et un retour arrière.
+4. Une sauvegarde, une restauration et le rapport des 12 scénarios de trafic.
+
+Tout blocage ou intervention supplémentaire doit être noté. Aucun accès à la
+production ni secret de l’entreprise n’est nécessaire pour ces vérifications.
