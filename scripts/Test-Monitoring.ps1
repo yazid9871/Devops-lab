@@ -56,7 +56,9 @@ $am = Invoke-MonitorKubectl get --raw /api/v1/namespaces/monitoring/services/htt
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $dashboard = Get-Content (Join-Path $projectRoot 'k8s/monitoring/dashboard.json') -Raw | ConvertFrom-Json
 $traefikDashboard = Get-Content (Join-Path $projectRoot 'k8s/monitoring/traefik-dashboard.json') -Raw | ConvertFrom-Json
-$mountedTraefikDashboard = Invoke-MonitorKubectl -n monitoring exec deployment/grafana -- cat /var/lib/grafana/dashboards/traefik-dashboard.json | ConvertFrom-Json
+$mountedDashboardJson = & kubectl --context kind-devops-lab -n monitoring exec deployment/grafana -- cat /var/lib/grafana/dashboards/traefik-dashboard.json
+if ($LASTEXITCODE -ne 0) { throw 'Cannot read the Traefik dashboard mounted in Grafana.' }
+$mountedTraefikDashboard = $mountedDashboardJson | ConvertFrom-Json
 if ($mountedTraefikDashboard.uid -ne $traefikDashboard.uid -or $mountedTraefikDashboard.version -ne $traefikDashboard.version) { throw 'The Traefik dashboard is not mounted in Grafana.' }
 foreach ($panel in $traefikDashboard.panels) {
     foreach ($target in $panel.targets) {
